@@ -12,3 +12,14 @@ export async function getHealth(signal) {
   }
   return data
 }
+
+export async function getDashboard(signal) {
+  const response = await fetch('/api/dashboard/', { signal, headers: { Accept: 'application/json' } })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const error = new Error(payload?.message || 'Não foi possível carregar o planejamento. Confira a conexão com o backend.')
+    error.code = payload?.code
+    throw error
+  }
+  return response.json()
+}
