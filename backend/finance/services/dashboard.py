@@ -96,12 +96,12 @@ def build_dashboard(scenario):
         "alerts": alerts,
         "warnings": list(dict.fromkeys(warnings)),
         "assumptions": [
-            "Cenário fictício com data de referência fixa; não acompanha contas reais.",
+            "Projeção calculada a partir dos lançamentos cadastrados e da data de referência exibida.",
             "Saldo atual inclui apenas realizados desde o início da abertura até a referência, inclusive.",
             "Saídas previstas são consideradas antes de entradas previstas no mesmo dia; horários bancários não são simulados.",
             "Recebimentos futuros são estimados. A cobertura dos compromissos depende de sua ocorrência nas datas informadas.",
             "Valor comprometido é planejamento: não bloqueia dinheiro. Limites de crédito não compõem recursos próprios.",
-            "Ocorrências mensais estão individualizadas no cenário; sem ajuste automático por feriados ou finais de semana.",
+            "Cada mês tem sua própria ocorrência; dias inexistentes usam o último dia do mês, sem ajuste por feriados ou finais de semana.",
             "Saldo negativo representa necessidade estimada de recursos, sem autorização de pagamento.",
         ],
     }

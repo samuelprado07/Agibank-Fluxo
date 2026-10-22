@@ -1,29 +1,37 @@
+import { useState } from 'react'
 import { date, money, shortDate } from '../format.js'
 
 export default function ProjectionChart({ days }) {
-  const values = days.flatMap((d) => [Number(d.closing_balance), Number(d.minimum_balance)])
-  const low = Math.min(0, ...values), high = Math.max(100, ...values), padding = (high - low) * .12
-  const min = low - padding, max = high + padding
-  const x = (i) => 100 + i * 670 / Math.max(1, days.length - 1)
-  const y = (v) => 225 - (Number(v) - min) / (max - min) * 197
-  const line = days.map((d, i) => `${x(i)},${y(d.closing_balance)}`).join(' ')
+  const [selected, setSelected] = useState(null)
+  const values = days.flatMap((day) => [Number(day.closing_balance), Number(day.minimum_balance)])
+  const low = Math.min(0, ...values), high = Math.max(100, ...values)
+  const padding = (high - low) * .22
+  const min = low - padding * .3, max = high + padding
+  const width = 1100, left = 90, right = 50, baseline = 284
+  const x = (index) => left + index * (width - left - right) / Math.max(1, days.length - 1)
+  const y = (value) => baseline - (Number(value) - min) / (max - min) * 240
+  const line = days.map((day, index) => `${x(index)},${y(day.closing_balance)}`).join(' ')
+  const ticks = [...new Set([0, Math.round(high / 2), high, ...(low < 0 ? [low] : [])])]
+  const active = selected === null ? null : days[selected]
+
   return <section className="panel chart-panel" aria-labelledby="projection-title">
-    <div className="panel-heading"><div><p className="eyebrow">PRÓXIMOS 15 DIAS</p><h2 id="projection-title">Seu saldo, dia a dia</h2></div><span className="period-tag">{shortDate(days[0].date)} — {shortDate(days.at(-1).date)}</span></div>
-    <p className="muted">Saldo no fechamento de cada dia. Os marcadores indicam o menor saldo na sequência diária.</p>
-    <div className="chart-scroll"><svg viewBox="0 0 800 280" role="img" aria-labelledby="chart-title chart-description">
-      <title id="chart-title">Projeção diária de saldo</title><desc id="chart-description">De {date(days[0].date)} a {date(days.at(-1).date)}. A linha pontilhada representa saldo zero. Consulte os valores na tabela abaixo.</desc>
-      {[0, high, ...(low < 0 ? [low] : [])].map((tick) => <g key={tick}><line x1="100" x2="770" y1={y(tick)} y2={y(tick)} className={tick === 0 ? 'zero-line' : 'grid-line'} /><text x="88" y={y(tick) + 4} textAnchor="end" className="axis-text">{money(tick)}</text></g>)}
-      <polygon points={`${x(0)},${y(0)} ${line} ${x(days.length - 1)},${y(0)}`} fill="#e1eee7" opacity=".6" />
-      <polyline points={line} fill="none" stroke="#276749" strokeWidth="3" strokeLinejoin="round" />
-      {days.map((d, i) => <g key={d.date}><circle cx={x(i)} cy={y(d.closing_balance)} r="3.5" fill="#276749"><title>{date(d.date)}: fechamento {money(d.closing_balance)}</title></circle>
-        {Number(d.minimum_balance) <= 0 && <path d={`M ${x(i)} ${y(d.minimum_balance) - 6} l 6 6 l -6 6 l -6 -6 Z`} fill={Number(d.minimum_balance) < 0 ? '#b13f32' : '#93610f'}><title>{date(d.date)}: menor saldo {money(d.minimum_balance)}</title></path>}
-        {(i % 3 === 0 || i === days.length - 1) && <text x={x(i)} y="255" textAnchor="middle" className="axis-text">{shortDate(d.date)}</text>}
+    <div className="panel-heading"><div><p className="eyebrow">UM OLHAR ADIANTE</p><h2 id="projection-title">Evolução do seu saldo</h2></div><span className="period-tag"><span className="calendar-icon" aria-hidden="true">▦</span> {shortDate(days[0].date)} a {shortDate(days.at(-1).date)} <i /> 15 dias</span></div>
+    <div className="chart-description"><p>Projeção diária a partir dos seus lançamentos.</p><span><i /> Saldo previsto</span></div>
+    <p className="chart-selected" role="status">{active ? <>{date(active.date)} · Fechamento <strong>{money(active.closing_balance)}</strong> · Menor saldo {money(active.minimum_balance)}</> : '\u00a0'}</p>
+    <div className="chart-scroll" tabIndex="0" aria-label="Gráfico com rolagem horizontal e valores por dia"><svg viewBox={`0 0 ${width} 340`} role="img" aria-labelledby="chart-title chart-description">
+      <title id="chart-title">Saldo previsto nos próximos 15 dias</title><desc id="chart-description">Valores de fechamento visíveis em cada ponto. De {date(days[0].date)} a {date(days.at(-1).date)}. Marcadores em losango indicam ausência de margem ou insuficiência. Tabela detalhada abaixo.</desc>
+      <defs><linearGradient id="balance-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4b7fde" stopOpacity=".16" /><stop offset="100%" stopColor="#4b7fde" stopOpacity=".01" /></linearGradient></defs>
+      {ticks.map((tick) => <g key={tick}><line x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} className={tick === 0 ? 'zero-line' : 'grid-line'} /><text x={left - 18} y={y(tick) + 4} textAnchor="end" className="axis-text">{money(tick)}</text></g>)}
+      <polygon points={`${x(0)},${y(0)} ${line} ${x(days.length - 1)},${y(0)}`} fill="url(#balance-fill)" />
+      <polyline points={line} fill="none" stroke="#3266be" strokeWidth="3" strokeLinejoin="round" />
+      {days.map((day, index) => <g key={day.date}>
+        <text x={x(index)} y={y(day.closing_balance) - (index % 2 === 0 ? 17 : 37)} textAnchor="middle" className={`point-value ${Number(day.closing_balance) < 0 ? 'negative-value' : ''}`}>{money(day.closing_balance)}</text>
+        <circle cx={x(index)} cy={y(day.closing_balance)} r={selected === index ? 6 : 4.5} fill="white" stroke="#3266be" strokeWidth="2.5" tabIndex="0" aria-label={`${date(day.date)}: saldo ${money(day.closing_balance)}`} onMouseEnter={() => setSelected(index)} onMouseLeave={() => setSelected(null)} onFocus={() => setSelected(index)} onBlur={() => setSelected(null)}><title>{date(day.date)}: {money(day.closing_balance)}</title></circle>
+        {Number(day.minimum_balance) <= 0 && <path d={`M ${x(index)} ${y(day.minimum_balance) - 6} l 6 6 l -6 6 l -6 -6 Z`} fill={Number(day.minimum_balance) < 0 ? '#b8413b' : '#9c701c'}><title>Menor saldo em {date(day.date)}: {money(day.minimum_balance)}</title></path>}
+        <text x={x(index)} y="321" textAnchor="middle" className="axis-text">{shortDate(day.date)}</text>
       </g>)}
     </svg></div>
-    <div className="chart-legend"><span>━ Saldo de fechamento</span><span>◆ Insuficiência ou ausência de margem</span></div>
-    <details className="daily-details"><summary>Consultar valores por dia</summary><div className="table-scroll"><table>
-      <caption>Valores projetados nos 15 dias do gráfico</caption><thead><tr>{['Data', 'Entradas', 'Saídas', 'Menor saldo', 'Fechamento'].map((h) => <th scope="col" key={h}>{h}</th>)}</tr></thead>
-      <tbody>{days.map((d) => <tr key={d.date}><th scope="row">{date(d.date)}</th><td>{money(d.income)}</td><td>{money(d.expenses)}</td><td>{money(d.minimum_balance)}</td><td>{money(d.closing_balance)}</td></tr>)}</tbody>
-    </table></div></details>
+    <div className="chart-footnote"><span>◆ Marcadores indicam insuficiência ou ausência de margem.</span><span>Valores sujeitos às entradas e saídas previstas.</span></div>
+    <details className="daily-details"><summary>Ver movimentações e valores por dia</summary><div className="table-scroll"><table><caption>Projeção dos 15 dias exibidos no gráfico</caption><thead><tr>{['Data', 'Entradas', 'Saídas', 'Menor saldo', 'Fechamento'].map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead><tbody>{days.map((day) => <tr key={day.date}><th scope="row">{date(day.date)}</th><td>{money(day.income)}</td><td>{money(day.expenses)}</td><td>{money(day.minimum_balance)}</td><td>{money(day.closing_balance)}</td></tr>)}</tbody></table></div></details>
   </section>
 }

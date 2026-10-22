@@ -63,7 +63,7 @@ export default function ExpensesPanel({ onChanged }) {
   const expenses = (result.expenses || []).filter((expense) => filter === 'all' || expense.status === filter)
   return <section className="panel expenses-panel" aria-labelledby="expenses-title">
     <div className="panel-heading"><div><p className="eyebrow">SEUS COMPROMISSOS</p><h2 id="expenses-title">Despesas essenciais</h2></div><button type="button" onClick={() => { setEditing(null); setShowForm(true); setNotice(''); setAction(null) }}>Nova despesa</button></div>
-    <p className="muted">Consulte despesas essenciais e não essenciais do cenário. Cada vencimento representa um compromisso individual.</p>
+    <p className="muted">Acompanhe suas despesas essenciais e não essenciais. Cada vencimento é um compromisso individual.</p>
     {notice && <p className="success-notice" role="status">{notice}</p>}
     {showForm && <ExpenseForm key={editing?.id || 'new'} expense={editing} onSaved={saved} onCancel={() => { setShowForm(false); setEditing(null) }} />}
     {actionError && <p className="form-error" role="alert">{actionError}</p>}

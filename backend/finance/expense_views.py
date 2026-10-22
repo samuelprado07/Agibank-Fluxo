@@ -16,7 +16,7 @@ def _active_scenario():
 
 
 def _missing_scenario():
-    return JsonResponse({"code": "no_scenario", "message": "Nenhum cenário demonstrativo carregado."}, status=404)
+    return JsonResponse({"code": "no_scenario", "message": "Nenhum planejamento financeiro cadastrado."}, status=404)
 
 
 def read_payload(request):

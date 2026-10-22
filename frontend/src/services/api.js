@@ -59,3 +59,7 @@ export const updateExpense = (id, expense, signal) => writeExpense(`/api/expense
 export const cancelExpense = (id, scope, signal) => writeExpense(`/api/expenses/${id}/cancel/`, 'POST', { scope }, signal)
 export const deleteExpense = (id, signal) => writeExpense(`/api/expenses/${id}/`, 'DELETE', {}, signal)
 export const getExpense = (id, signal) => expenseRequest(`/api/expenses/${id}/`, { signal })
+export const getRecurrences = (signal) => expenseRequest('/api/recurrences/', { signal })
+export const getRecurrence = (id, signal) => expenseRequest(`/api/recurrences/${id}/`, { signal })
+export const updateRecurrence = (id, values, signal) => writeExpense(`/api/recurrences/${id}/`, 'PATCH', values, signal)
+export const stopRecurrence = (id, values, signal) => writeExpense(`/api/recurrences/${id}/cancel/`, 'POST', values, signal)
