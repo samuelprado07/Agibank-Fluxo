@@ -11,3 +11,47 @@ main{max-width:1360px;margin:auto;padding:38px 36px 20px}.dashboard-intro{displa
 /* Allow the chart and table to scroll inside their panels on narrow screens. */
 .analysis-grid > *, .assumptions-grid > * { min-width: 0; }
 @media (max-width: 1050px) { .analysis-grid { grid-template-columns: minmax(0, 1fr); } }
+.expenses-panel { margin-top: 24px; }
+.expenses-panel button { margin: 0; }
+.expense-form { margin: 22px 0; padding: 22px; border: 1px solid #ccd9cd; border-radius: 12px; background: #f7f9f5; }
+.expense-form h3 { margin: 0; font-size: 1.1rem; }
+.expense-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.expense-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 20px 0; }
+.expense-fields label { display: grid; gap: 6px; font-size: .9rem; font-weight: 600; }
+.expense-fields input, .expenses-filter select { width: 100%; min-width: 0; border: 1px solid #91a895; border-radius: 6px; background: white; padding: 10px 12px; color: #213c32; font: inherit; }
+.expense-fields input:focus-visible, .expenses-filter select:focus-visible, .essential-choice input:focus-visible { outline: 3px solid #99601b; outline-offset: 3px; }
+.expense-fields [aria-invalid=true] { border-color: #a23d30; }
+.essential-choice { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+.essential-choice input { width: 20px; height: 20px; accent-color: #234c39; }
+.expense-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.secondary-button { color: #234c39; background: white; border: 1px solid #91a895; }
+.secondary-button:hover { background: #e8efe5; }
+.field-error, .form-error { color: #a23d30; font-size: .85rem; font-weight: 500; }
+.form-error { padding: 12px; border: 1px solid #e6bcb0; border-radius: 6px; background: #fff4ef; }
+.expenses-filter { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 20px 0; font-size: .85rem; }
+.expenses-filter select { width: auto; }
+.expenses-filter span { margin-left: auto; }
+.expenses-table { font-size: .85rem; }
+.expenses-table td, .expenses-table th { padding: 14px 12px; }
+.expenses-table th:first-child { white-space: normal; min-width: 180px; }
+.expense-status { display: inline-block; padding: 3px 9px; border-radius: 12px; background: #f6ecd8; color: #70501c; font-size: .78rem; }
+.expense-status.settled { background: #e7f1e5; color: #355e3b; }
+.expense-status.cancelled { background: #eceeeb; color: #5a6358; }
+.overdue-label { display: block; font-size: .73rem; color: #a23d30; }
+.success-notice, .dashboard-refresh { font-size: .85rem; padding: 12px 16px; background: #eaf3e6; border-radius: 8px; }
+.dashboard-refresh { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.dashboard-refresh p { margin: 0; }
+@media (max-width: 720px) { .expense-fields { grid-template-columns: minmax(0, 1fr); } .expenses-panel .panel-heading { flex-wrap: wrap; } .expense-form { padding: 16px; } .expenses-filter span { margin-left: 0; width: 100%; } }
+.end-date-field, .scope-field { display: grid; gap: 8px; margin: 16px 0; max-width: 560px; font-size: .9rem; font-weight: 600; }
+.end-date-field input, .scope-field select { padding: 10px 12px; border: 1px solid #91a895; border-radius: 6px; font: inherit; color: #213c32; background: white; min-width: 0; width: 100%; }
+.essential-choice + .essential-choice { margin-top: 14px; }
+.expense-confirm, .expense-detail { padding: 20px; margin: 20px 0; background: #f5f7f1; border: 1px solid #d5dfcf; border-radius: 10px; }
+.expense-confirm h3, .expense-detail h3 { margin: 0; font-size: 1rem; }
+.expense-detail { overflow-wrap: anywhere; }
+.expense-detail li + li { margin-top: 16px; }
+.recurrence-label { display: block; font-size: .75rem; color: #60705e; font-weight: 400; margin-top: 3px; }
+.row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; min-width: 180px; max-width: 230px; margin-left: auto; }
+.row-actions button { padding: 7px 9px; font-size: .76rem; }
+button:disabled { cursor: wait; opacity: .65; }
+.scope-field select:focus-visible, .end-date-field input:focus-visible { outline: 3px solid #99601b; outline-offset: 3px; }
+@media (max-width: 720px) { .expense-confirm, .expense-detail { padding: 14px; } }

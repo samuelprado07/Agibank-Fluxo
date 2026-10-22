@@ -19,6 +19,9 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# The Vite development proxy preserves the browser's local origin.
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"] if DEBUG else []
+
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",

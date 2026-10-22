@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react'
 import { getDashboard } from './services/api.js'
 import Dashboard from './components/Dashboard.jsx'
+import ExpensesPanel from './components/ExpensesPanel.jsx'
 
 export default function App() {
   const [result, setResult] = useState({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const [refreshMessage, setRefreshMessage] = useState('')
+
+  async function refreshDashboard() {
+    setRefreshMessage('Atualizando os indicadores…')
+    try {
+      const data = await getDashboard(AbortSignal.timeout(10000))
+      setResult({ status: 'ready', data })
+      setRefreshMessage('Planejamento atualizado com os dados salvos.')
+    } catch {
+      setRefreshMessage('A despesa foi salva, mas não foi possível atualizar o dashboard. Recarregue os indicadores.')
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -26,7 +39,11 @@ export default function App() {
   return <>
     <header className="site-header"><div className="header-inner"><a className="brand" href="/" aria-label="Agibank Preventivo, início"><span className="brand-symbol" aria-hidden="true">a</span><span>agibank <strong>preventivo</strong></span></a><span className="badge">Demonstração local</span></div></header>
     <main>
-      {result.status === 'ready' ? <Dashboard data={result.data} /> : <section className="panel state-panel" aria-live="polite">
+      {result.status === 'ready' ? <>
+        {refreshMessage && <div className="dashboard-refresh"><p role="status">{refreshMessage}</p><button type="button" className="secondary-button" onClick={refreshDashboard}>Atualizar indicadores</button></div>}
+        <Dashboard data={result.data} />
+        <ExpensesPanel onChanged={refreshDashboard} />
+      </> : <section className="panel state-panel" aria-live="polite">
         <p className="eyebrow">SEU PLANEJAMENTO</p>
         <h1>{result.status === 'loading' ? 'Preparando seu dashboard…' : result.status === 'empty' ? 'Seu cenário ainda não foi carregado' : 'Não conseguimos carregar o dashboard'}</h1>
         {result.message && <p role="status">{result.message}</p>}

@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from .projection import project
+from .recurrences import ensure_occurrences
 
 ZERO = Decimal("0.00")
 
@@ -10,6 +11,7 @@ def build_dashboard(scenario):
     reference = scenario.reference_date
     if scenario.opening_date > reference:
         raise ValueError("A data de abertura não pode ser posterior à referência.")
+    ensure_occurrences(scenario, reference + timedelta(days=59))
     warnings = []
     movements = list(scenario.movements.select_related("occurrence").all())
     occurrences = list(scenario.occurrences.all())
