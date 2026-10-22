@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { getHealth } from './services/api.js'
+import { getDashboard } from './services/api.js'
+import Dashboard from './components/Dashboard.jsx'
 
 export default function App() {
-  const [connection, setConnection] = useState('loading')
+  const [result, setResult] = useState({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
@@ -10,9 +11,9 @@ export default function App() {
     const timeout = window.setTimeout(() => controller.abort(), 10000)
     let active = true
 
-    getHealth(controller.signal)
-      .then(() => { if (active) setConnection('connected') })
-      .catch(() => { if (active) setConnection('error') })
+    getDashboard(controller.signal)
+      .then((data) => { if (active) setResult({ status: 'ready', data }) })
+      .catch((error) => { if (active) setResult({ status: error.code === 'no_scenario' ? 'empty' : 'error', message: error.name === 'AbortError' ? 'A conexão demorou mais que o esperado. Tente novamente.' : error.message }) })
       .finally(() => window.clearTimeout(timeout))
 
     return () => {
@@ -22,40 +23,17 @@ export default function App() {
     }
   }, [attempt])
 
-  const messages = {
-    loading: 'Verificando conexão com o serviço…',
-    connected: 'Conexão estabelecida com o serviço.',
-    error: 'Não foi possível conectar. Confira se o backend está em execução e tente novamente.',
-  }
-
-  return (
+  return <>
+    <header className="site-header"><div className="header-inner"><a className="brand" href="/" aria-label="Agibank Preventivo, início"><span className="brand-symbol" aria-hidden="true">a</span><span>agibank <strong>preventivo</strong></span></a><span className="badge">Demonstração local</span></div></header>
     <main>
-      <header>
-        <span className="brand">Agibank Preventivo</span>
-        <span className="badge">Ambiente demonstrativo</span>
-      </header>
-      <section aria-labelledby="welcome-title">
-        <p className="eyebrow">Planejamento financeiro preventivo</p>
-        <h1 id="welcome-title">Mais clareza para planejar seus próximos passos.</h1>
-        <p className="intro">
-          Acompanhe seus compromissos e perceba possíveis dificuldades com antecedência.
-          Este projeto está na etapa de preparação do ambiente.
-        </p>
-        <div className={`connection ${connection}`}>
-          <h2>Conexão do ambiente</h2>
-          <p role="status" aria-live="polite">{messages[connection]}</p>
-          {connection === 'error' && (
-            <button onClick={() => {
-              setConnection('loading')
-              setAttempt((value) => value + 1)
-            }}>Tentar novamente</button>
-          )}
-        </div>
-        <p className="notice">
-          Demonstração local, sem acesso a contas reais. O dashboard, as projeções
-          e o assistente serão implementados nas próximas etapas.
-        </p>
-      </section>
+      {result.status === 'ready' ? <Dashboard data={result.data} /> : <section className="panel state-panel" aria-live="polite">
+        <p className="eyebrow">SEU PLANEJAMENTO</p>
+        <h1>{result.status === 'loading' ? 'Preparando seu dashboard…' : result.status === 'empty' ? 'Seu cenário ainda não foi carregado' : 'Não conseguimos carregar o dashboard'}</h1>
+        {result.message && <p role="status">{result.message}</p>}
+        {result.status === 'empty' && <p>Carregue os dados fictícios pelo comando <code>manage.py load_demo</code> no backend.</p>}
+        {result.status !== 'loading' && <button onClick={() => { setResult({ status: 'loading' }); setAttempt((value) => value + 1) }}>Tentar novamente</button>}
+      </section>}
+      <footer>Planejamento para cuidar do seu amanhã. <span>Dados fictícios · Sem acesso a contas reais</span></footer>
     </main>
-  )
+  </>
 }

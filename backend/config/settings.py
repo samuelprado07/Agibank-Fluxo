@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "core.apps.CoreConfig",
+    "finance.apps.FinanceConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
