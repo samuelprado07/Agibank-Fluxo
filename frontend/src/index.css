@@ -122,8 +122,10 @@ tbody td { color: #667a90; }
 .expense-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
 .expense-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 19px; margin: 22px 0; }
 .expense-fields label, .end-date-field, .scope-field { display: grid; gap: 7px; font-size: .82rem; color: #566d86; font-weight: 500; }
-input:not([type=checkbox]), select { width: 100%; min-width: 0; border: 1px solid #d0dae7; border-radius: 7px; background: white; padding: 10px 12px; color: #2e4663; font-size: .87rem; }
-input[aria-invalid=true] { border-color: #bb5b52; }
+input:not([type=checkbox]), select, .payment-form textarea { width: 100%; min-width: 0; border: 1px solid #d0dae7; border-radius: 7px; background: white; padding: 10px 12px; color: #2e4663; font-size: .87rem; }
+input[aria-invalid=true], .payment-form textarea[aria-invalid=true] { border-color: #bb5b52; }
+.payment-form textarea { font-family: inherit; resize: vertical; }
+.payment-form fieldset:disabled { opacity: .7; }
 .essential-choice { display: flex; gap: 10px; align-items: center; font-size: .84rem; color: #596f88; margin: 14px 0; }
 .essential-choice input { width: 18px; height: 18px; accent-color: #285ec0; flex-shrink: 0; }
 .scope-field, .end-date-field { max-width: 600px; margin: 17px 0; }

@@ -39,12 +39,31 @@ class Occurrence(models.Model):
 
 
 class Movement(models.Model):
+    is_voided = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
     scenario = models.ForeignKey(Scenario, on_delete=models.CASCADE, related_name="movements")
     occurrence = models.OneToOneField(Occurrence, null=True, blank=True, on_delete=models.PROTECT, related_name="movement")
     description = models.CharField(max_length=150)
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
     date = models.DateField()
     direction = models.CharField(max_length=10, choices=Occurrence.Direction.choices)
+
+
+class PaymentOperation(models.Model):
+    key = models.UUIDField(unique=True)
+    fingerprint = models.CharField(max_length=64)
+    result = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PaymentHistory(models.Model):
+    movement = models.ForeignKey(Movement, on_delete=models.PROTECT, related_name="payment_history")
+    operation = models.OneToOneField(PaymentOperation, on_delete=models.PROTECT)
+    action = models.CharField(max_length=12)
+    reason = models.CharField(max_length=500, blank=True)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class ExpenseSeries(models.Model):

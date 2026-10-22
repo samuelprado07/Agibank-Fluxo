@@ -38,7 +38,12 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = []
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+DATABASES = {"default": {
+    "ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3",
+    # Acquire SQLite's writer lock before reading data used by an atomic update.
+    "OPTIONS": {"transaction_mode": "IMMEDIATE", "timeout": 5},
+    "TEST": {"NAME": BASE_DIR / "test.sqlite3"},
+}}
 LANGUAGE_CODE = "pt-br"
 TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True

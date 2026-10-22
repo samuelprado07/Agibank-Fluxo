@@ -73,7 +73,7 @@ def snapshot(expense):
 
 
 def is_paid_or_linked(expense):
-    return expense.status == "settled" or Movement.objects.filter(occurrence=expense).exists()
+    return expense.status == "settled" or Movement.objects.filter(occurrence=expense, is_voided=False).exists()
 
 
 class ExpenseConflict(Exception):
@@ -145,7 +145,7 @@ def cancel_expense(expense, scope):
 
 @transaction.atomic
 def delete_expense(expense):
-    if is_paid_or_linked(expense) or expense.status == "cancelled" or expense.history.exists():
+    if Movement.objects.filter(occurrence=expense).exists() or is_paid_or_linked(expense) or expense.status == "cancelled" or expense.history.exists():
         raise ExpenseConflict("Despesa com histórico de pagamento, edição ou cancelamento não pode ser excluída.")
     if expense.series_id:
         # Remember a removed month so consultation cannot recreate it.
@@ -155,6 +155,7 @@ def delete_expense(expense):
 
 def serialize_expense(expense):
     linked = Movement.objects.filter(occurrence=expense).first()
+    active = linked is not None and not linked.is_voided
     return {
         "id": expense.pk,
         "description": expense.description,
@@ -169,7 +170,10 @@ def serialize_expense(expense):
         "competence": expense.competence,
         "is_exception": expense.is_exception,
         "end_date": expense.series.end_date if expense.series_id else None,
-        "can_edit": expense.status == "pending" and linked is None,
+        "can_edit": expense.status == "pending" and not active,
+        "can_pay": expense.status == "pending" and not active,
+        "can_correct_payment": expense.status == "settled" and active,
+        "payment_version": linked.version if linked else 0,
         "can_delete": expense.status == "pending" and linked is None and not expense.history.exists(),
-        "payment": {"amount": linked.amount, "date": linked.date} if linked else None,
+        "payment": {"amount": linked.amount, "date": linked.date} if active else None,
     }
