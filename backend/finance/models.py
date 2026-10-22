@@ -30,6 +30,12 @@ class Occurrence(models.Model):
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
     essential = models.BooleanField(default=False)
     category = models.CharField(max_length=60, blank=True)
+    series = models.ForeignKey("ExpenseSeries", null=True, blank=True, on_delete=models.PROTECT, related_name="occurrences")
+    competence = models.DateField(null=True, blank=True)
+    is_exception = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("series", "competence"), name="unique_expense_series_month")]
 
 
 class Movement(models.Model):
@@ -39,3 +45,37 @@ class Movement(models.Model):
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
     date = models.DateField()
     direction = models.CharField(max_length=10, choices=Occurrence.Direction.choices)
+
+
+class ExpenseSeries(models.Model):
+    scenario = models.ForeignKey(Scenario, on_delete=models.CASCADE, related_name="expense_series")
+    description = models.CharField(max_length=150)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    category = models.CharField(max_length=60, blank=True)
+    essential = models.BooleanField(default=False)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    cancelled_from = models.DateField(null=True, blank=True)
+
+
+class ExpenseSeriesRevision(models.Model):
+    series = models.ForeignKey(ExpenseSeries, on_delete=models.PROTECT, related_name="revisions")
+    effective_from = models.DateField()
+    values = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ExpenseHistory(models.Model):
+    occurrence = models.ForeignKey(Occurrence, on_delete=models.PROTECT, related_name="history")
+    action = models.CharField(max_length=20)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ExpenseSeriesExclusion(models.Model):
+    series = models.ForeignKey(ExpenseSeries, on_delete=models.PROTECT, related_name="exclusions")
+    competence = models.DateField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("series", "competence"), name="unique_series_excluded_month")]
