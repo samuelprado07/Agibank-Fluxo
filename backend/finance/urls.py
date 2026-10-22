@@ -3,8 +3,11 @@ from django.urls import path
 from .views import dashboard
 from .expense_views import expense_cancel, expense_collection, expense_detail
 from .series_views import series_collection, series_detail
+from .payment_views import payment
 
 urlpatterns = [
+    path("expenses/<int:expense_id>/payment/", payment, name="expense-payment"),
+    path("expenses/<int:expense_id>/payment/undo/", payment, {"undo": True}, name="expense-payment-undo"),
     path("recurrences/", series_collection, name="series-collection"),
     path("recurrences/<int:series_id>/", series_detail, name="series-detail"),
     path("recurrences/<int:series_id>/cancel/", series_detail, {"cancel": True}, name="series-cancel"),

@@ -34,6 +34,7 @@ async function expenseRequest(path, options = {}) {
   if (!response.ok) {
     const error = new Error(response.status === 403 ? 'A sessão de segurança expirou. Atualize a página e tente novamente.' : payload?.message || 'Não foi possível acessar as despesas. Tente novamente.')
     error.fields = payload?.errors || {}
+    error.status = response.status
     throw error
   }
   return payload
@@ -63,3 +64,11 @@ export const getRecurrences = (signal) => expenseRequest('/api/recurrences/', { 
 export const getRecurrence = (id, signal) => expenseRequest(`/api/recurrences/${id}/`, { signal })
 export const updateRecurrence = (id, values, signal) => writeExpense(`/api/recurrences/${id}/`, 'PATCH', values, signal)
 export const stopRecurrence = (id, values, signal) => writeExpense(`/api/recurrences/${id}/cancel/`, 'POST', values, signal)
+
+export async function savePayment(id, action, values, signal) {
+  const result = await writeExpense(`/api/expenses/${id}/payment/${action === 'undo' ? 'undo/' : ''}`, action === 'correct' ? 'PATCH' : 'POST', values, signal)
+  if (result?.occurrence_id !== id || !Number.isInteger(result?.payment?.version)) {
+    throw new Error('Não foi possível confirmar o resultado. Reenvie a mesma operação para consultar a confirmação.')
+  }
+  return result
+}

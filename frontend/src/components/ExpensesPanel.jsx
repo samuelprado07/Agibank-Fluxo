@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { cancelExpense, deleteExpense, getExpense, getExpenses } from '../services/api.js'
 import { date, money } from '../format.js'
 import ExpenseForm from './ExpenseForm.jsx'
+import PaymentForm from './PaymentForm.jsx'
 
 const statuses = { pending: 'Pendente', settled: 'Paga', cancelled: 'Cancelada' }
 
@@ -17,6 +18,7 @@ export default function ExpensesPanel({ onChanged }) {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const [detail, setDetail] = useState(null)
+  const [payment, setPayment] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -30,6 +32,7 @@ export default function ExpensesPanel({ onChanged }) {
   }, [attempt])
 
   function saved(message) {
+    setPayment(null)
     setShowForm(false)
     setEditing(null)
     setAction(null)
@@ -61,10 +64,19 @@ export default function ExpensesPanel({ onChanged }) {
   }
 
   const expenses = (result.expenses || []).filter((expense) => filter === 'all' || expense.status === filter)
+  function startPayment(expense, type) {
+    setPayment({ expense, type })
+    setShowForm(false)
+    setAction(null)
+    setDetail(null)
+    setNotice('')
+    setActionError('')
+  }
   return <section className="panel expenses-panel" aria-labelledby="expenses-title">
-    <div className="panel-heading"><div><p className="eyebrow">SEUS COMPROMISSOS</p><h2 id="expenses-title">Despesas essenciais</h2></div><button type="button" onClick={() => { setEditing(null); setShowForm(true); setNotice(''); setAction(null) }}>Nova despesa</button></div>
+    <div className="panel-heading"><div><p className="eyebrow">SEUS COMPROMISSOS</p><h2 id="expenses-title">Despesas essenciais</h2></div><button type="button" disabled={!!payment} onClick={() => { setEditing(null); setShowForm(true); setNotice(''); setAction(null) }}>Nova despesa</button></div>
     <p className="muted">Acompanhe suas despesas essenciais e não essenciais. Cada vencimento é um compromisso individual.</p>
     {notice && <p className="success-notice" role="status">{notice}</p>}
+    {payment && <PaymentForm key={`${payment.expense.id}-${payment.type}`} expense={payment.expense} action={payment.type} openingDate={result.opening_date} referenceDate={result.reference_date} onSaved={saved} onReload={() => saved('Lista atualizada. Confira os dados antes de continuar.')} onCancel={() => saved('Confira a situação atualizada na lista.')} />}
     {showForm && <ExpenseForm key={editing?.id || 'new'} expense={editing} onSaved={saved} onCancel={() => { setShowForm(false); setEditing(null) }} />}
     {actionError && <p className="form-error" role="alert">{actionError}</p>}
     {action && <div className="expense-confirm" role="group" aria-label="Confirmar alteração">
@@ -77,14 +89,20 @@ export default function ExpensesPanel({ onChanged }) {
       <p>{money(detail.amount)} · {date(detail.due_date)} · {statuses[detail.status]} · {detail.essential ? 'Essencial' : 'Não essencial'}</p>
       <p className="muted">{detail.recurring ? `Mensal · competência ${date(detail.competence).slice(3)}${detail.is_exception ? ' · exceção individual' : ''}${detail.end_date ? ` · término ${date(detail.end_date)}` : ''}` : 'Despesa avulsa'}</p>
       {detail.payment && <p>Pagamento registrado: <strong>{money(detail.payment.amount)}</strong> em {date(detail.payment.date)}. Dados preservados; a edição da despesa não altera pagamentos.</p>}
+      <h4>Histórico de pagamentos</h4>{detail.payment_history?.length ? <ul>{detail.payment_history.map((entry) => <li key={entry.id}><strong>{{ confirm: 'Confirmação', correct: 'Correção', undo: 'Desfazimento' }[entry.action]}</strong> em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(entry.created_at))}
+        {entry.before.amount && <p className="muted">Antes: {money(entry.before.amount)} em {date(entry.before.date)} · {entry.before.is_voided ? 'desfeito' : 'ativo'}.</p>}
+        <p className="muted">Depois: {money(entry.after.amount)} em {date(entry.after.date)} · {entry.after.is_voided ? 'desfeito; previsão restaurada' : 'ativo'}.</p>{entry.reason && <p>Motivo: {entry.reason}</p>}
+      </li>)}</ul> : <p className="muted">Sem alterações de pagamento registradas neste módulo.</p>}
       <h4>Histórico de alterações</h4>{detail.history.length ? <ul>{detail.history.map((entry) => <li key={entry.id}><strong>{entry.action === 'cancel' ? 'Cancelamento' : 'Edição'}</strong> em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(entry.created_at))}<p className="muted">Antes: {entry.before.description}, {money(entry.before.amount)}, {date(entry.before.due_date)}, {statuses[entry.before.status]}.</p><p className="muted">Depois: {entry.after.description}, {money(entry.after.amount)}, {date(entry.after.due_date)}, {statuses[entry.after.status]}. Categoria: {entry.after.category || 'Sem categoria'}. Essencial: {entry.after.essential ? 'Sim' : 'Não'}.</p></li>)}</ul> : <p className="muted">Sem edições ou cancelamentos registrados neste módulo.</p>}
     </div>}
     {result.status === 'loading' && <p role="status">Carregando despesas…</p>}
     {result.status === 'error' && <div role="alert"><p>{result.message}</p><button type="button" onClick={() => { setResult({ status: 'loading' }); setAttempt((value) => value + 1) }}>Tentar novamente</button></div>}
-    {result.status === 'ready' && <>
+    {result.status === 'ready' && !payment && <>
       <div className="expenses-filter"><label htmlFor="expense-filter">Situação</label><select id="expense-filter" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Todas</option>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><span className="muted">Referência: {date(result.reference_date)}</span></div>
       {!expenses.length ? <p>Nenhuma despesa encontrada para esta seleção.</p> : <div className="table-scroll"><table className="expenses-table"><caption>Compromissos cadastrados no cenário, incluindo vencidos e lançamentos fora do horizonte do gráfico</caption><thead><tr>{['Descrição', 'Valor', 'Categoria', 'Vencimento', 'Essencial', 'Situação', 'Ações'].map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead><tbody>{expenses.map((expense) => <tr key={expense.id}><th scope="row">{expense.description}<span className="recurrence-label">{expense.recurring ? `Mensal${expense.is_exception ? ' · exceção' : ''}` : 'Avulsa'}</span></th><td>{money(expense.amount)}</td><td>{expense.category || 'Sem categoria'}</td><td>{date(expense.due_date)}{expense.status === 'pending' && expense.due_date < result.reference_date && <span className="overdue-label">Vencida</span>}</td><td>{expense.essential ? 'Sim' : 'Não'}</td><td><span className={`expense-status ${expense.status}`}>{statuses[expense.status]}</span></td><td><div className="row-actions">
         <button type="button" className="secondary-button" disabled={busy} onClick={() => showDetails(expense)} aria-label={`Ver detalhes de ${expense.description}`}>Detalhes</button>
+        {expense.can_pay && <button type="button" className="secondary-button" onClick={() => startPayment(expense, 'confirm')} aria-label={`Registrar pagamento de ${expense.description}`}>Registrar pagamento</button>}
+        {expense.can_correct_payment && <><button type="button" className="secondary-button" onClick={() => startPayment(expense, 'correct')}>Corrigir pagamento</button><button type="button" className="secondary-button" onClick={() => startPayment(expense, 'undo')}>Desfazer pagamento</button></>}
         {expense.can_edit && <><button type="button" className="secondary-button" onClick={() => { setEditing(expense); setShowForm(true); setAction(null); setNotice('') }} aria-label={`Editar ${expense.description}`}>Editar</button><button type="button" className="secondary-button" onClick={() => { setAction({ type: 'cancel', expense }); setScope('this'); setShowForm(false); setActionError('') }} aria-label={`Cancelar ${expense.description}`}>Cancelar</button></>}
         {expense.can_delete && <button type="button" className="secondary-button" onClick={() => { setAction({ type: 'delete', expense }); setShowForm(false); setActionError('') }} aria-label={`Excluir ${expense.description}`}>Excluir</button>}
       </div></td></tr>)}</tbody></table></div>}

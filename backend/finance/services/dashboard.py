@@ -13,7 +13,7 @@ def build_dashboard(scenario):
         raise ValueError("A data de abertura não pode ser posterior à referência.")
     ensure_occurrences(scenario, reference + timedelta(days=59))
     warnings = []
-    movements = list(scenario.movements.select_related("occurrence").all())
+    movements = list(scenario.movements.select_related("occurrence").filter(is_voided=False))
     occurrences = list(scenario.occurrences.all())
     linked = {}
     balance = scenario.opening_balance
