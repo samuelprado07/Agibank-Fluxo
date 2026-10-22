@@ -5,12 +5,12 @@ from django.db import transaction
 
 from finance.forms import ExpenseForm
 from finance.models import ExpenseHistory, ExpenseSeries, ExpenseSeriesExclusion, ExpenseSeriesRevision, Movement, Occurrence
-from .recurrences import ensure_occurrences, month_of
+from .recurrences import effective_values, ensure_occurrences, month_of
 
 
 def validate_expense(payload, instance=None):
     errors = {}
-    allowed = set(ExpenseForm.Meta.fields) | ({"scope"} if instance else {"recurring", "end_date"})
+    allowed = set(ExpenseForm.Meta.fields) | ({"scope", "due_day"} if instance else {"recurring", "end_date"})
     for key in payload.keys() - allowed:
         errors[key] = ["Campo não permitido nesta operação."]
     for key in ("description", "amount", "category", "due_date"):
@@ -22,10 +22,14 @@ def validate_expense(payload, instance=None):
         errors["essential"] = ["Informe se a despesa é essencial."]
     if "recurring" in payload and type(payload["recurring"]) is not bool:
         errors["recurring"] = ["Informe verdadeiro ou falso."]
+    if "end_date" in payload and payload["end_date"] is not None and not isinstance(payload["end_date"], str):
+        errors["end_date"] = ["Informe uma data em texto ou deixe o término em branco."]
     if payload.get("scope", "this") not in ("this", "following"):
         errors["scope"] = ["Escolha somente esta ocorrência ou esta e as próximas."]
     if instance and payload.get("scope") == "following" and not instance.series_id:
         errors["scope"] = ["Esta despesa não pertence a uma série mensal."]
+    if "due_day" in payload and (type(payload["due_day"]) is not int or not 1 <= payload["due_day"] <= 31 or payload.get("scope") != "following"):
+        errors["due_day"] = ["Informe um dia de 1 a 31 somente para edição da série."]
     if errors:
         return None, errors
     values = {**snapshot(instance), **payload} if instance else payload
@@ -43,6 +47,8 @@ def validate_expense(payload, instance=None):
             errors["end_date"] = ["Informe uma data de término válida."]
     if instance and payload.get("scope") == "following" and month_of(form.cleaned_data["due_date"]) != instance.competence:
         errors["due_date"] = ["Para editar a série, mantenha o mês de competência e ajuste apenas o dia. Para mover só esta conta, escolha somente esta ocorrência."]
+    if "due_day" in payload:
+        form.cleaned_data["due_day"] = payload["due_day"]
     return (None, errors) if errors else (form, {})
 
 
@@ -50,7 +56,7 @@ def validate_expense(payload, instance=None):
 def create_expense(scenario, form, payload=None):
     payload = payload or {}
     if payload.get("recurring"):
-        series = ExpenseSeries.objects.create(scenario=scenario, description=form.cleaned_data["description"], amount=form.cleaned_data["amount"], category=form.cleaned_data["category"], essential=form.cleaned_data["essential"], start_date=form.cleaned_data["due_date"], end_date=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None)
+        series = ExpenseSeries.objects.create(scenario=scenario, description=form.cleaned_data["description"], amount=form.cleaned_data["amount"], category=form.cleaned_data["category"], essential=form.cleaned_data["essential"], start_date=form.cleaned_data["due_date"], due_day=form.cleaned_data["due_date"].day, end_date=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None)
         ensure_occurrences(scenario, max(series.start_date, scenario.reference_date + timedelta(days=59)))
         return series.occurrences.order_by("competence").first()
     expense = form.save(commit=False)
@@ -95,7 +101,7 @@ def edit_expense(expense, form, scope):
     if scope == "following":
         series = ExpenseSeries.objects.select_for_update().get(pk=expense.series_id)
         revision = {key: str(values[key]) if key == "amount" else values[key] for key in ("description", "amount", "category", "essential")}
-        revision["day"] = values["due_date"].day
+        revision["day"] = values.get("due_day", effective_values(series, expense.competence)["day"] if values["due_date"] == expense.due_date else values["due_date"].day)
         ExpenseSeriesRevision.objects.create(series=series, effective_from=expense.competence, values=revision)
         targets = list(series.occurrences.select_for_update().filter(competence__gte=expense.competence, status="pending").order_by("competence"))
     for target in targets:
@@ -104,7 +110,7 @@ def edit_expense(expense, form, scope):
         before = snapshot(target)
         for key in ("description", "amount", "category", "essential"):
             setattr(target, key, values[key])
-        target.due_date = date(target.competence.year, target.competence.month, min(values["due_date"].day, monthrange(target.competence.year, target.competence.month)[1])) if scope == "following" else values["due_date"]
+        target.due_date = date(target.competence.year, target.competence.month, min(revision["day"], monthrange(target.competence.year, target.competence.month)[1])) if scope == "following" else values["due_date"]
         if scope == "this" and target.series_id:
             target.is_exception = True
         target.full_clean()
@@ -159,6 +165,7 @@ def serialize_expense(expense):
         "status": expense.status,
         "recurring": bool(expense.series_id),
         "series_id": expense.series_id,
+        "series_day": effective_values(expense.series, expense.competence)["day"] if expense.series_id else None,
         "competence": expense.competence,
         "is_exception": expense.is_exception,
         "end_date": expense.series.end_date if expense.series_id else None,

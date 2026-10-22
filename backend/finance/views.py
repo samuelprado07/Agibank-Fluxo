@@ -9,7 +9,7 @@ from .services.dashboard import build_dashboard
 def dashboard(request):
     scenario = Scenario.objects.order_by("pk").first()
     if scenario is None:
-        return JsonResponse({"code": "no_scenario", "message": "Nenhum cenário demonstrativo carregado."}, status=404)
+        return JsonResponse({"code": "no_scenario", "message": "Nenhum planejamento financeiro cadastrado."}, status=404)
     try:
         data = build_dashboard(scenario)
     except ValueError as error:

@@ -4,7 +4,7 @@ import { createExpense, updateExpense } from '../services/api.js'
 const emptyExpense = { description: '', amount: '', category: '', due_date: '', essential: false, recurring: false, end_date: '' }
 
 export default function ExpenseForm({ expense, onSaved, onCancel }) {
-  const [values, setValues] = useState(expense ? { ...expense, amount: expense.amount.replace('.', ','), scope: 'this' } : emptyExpense)
+  const [values, setValues] = useState(expense ? { ...expense, amount: expense.amount.replace('.', ','), scope: 'this', due_day: expense.series_day || '' } : emptyExpense)
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
@@ -28,7 +28,7 @@ export default function ExpenseForm({ expense, onSaved, onCancel }) {
     try {
       const payload = { description: values.description.trim(), amount: normalized, category: values.category.trim(), due_date: values.due_date, essential: values.essential }
       if (expense) {
-        await updateExpense(expense.id, { ...payload, scope: values.scope })
+        await updateExpense(expense.id, { ...payload, scope: values.scope, ...(values.scope === 'following' ? { due_day: Number(values.due_day) } : {}) })
       } else {
         await createExpense({ ...payload, recurring: values.recurring, ...(values.recurring && values.end_date ? { end_date: values.end_date } : {}) })
       }
@@ -58,7 +58,8 @@ export default function ExpenseForm({ expense, onSaved, onCancel }) {
         <label className="essential-choice"><input name="recurring" type="checkbox" checked={values.recurring} onChange={change} />Repetir mensalmente a partir deste vencimento</label>
         {values.recurring && <label className="end-date-field" htmlFor="expense-end_date">Último vencimento permitido (opcional)<input {...fieldProps('end_date')} onInput={change} type="date" min={values.due_date || undefined} />{fieldError('end_date')}<span className="muted">Sem término, a série continua nos períodos consultados. Dias inexistentes usam o último dia do mês.</span></label>}
       </>}
-      {expense?.recurring && <label className="scope-field" htmlFor="expense-scope">Aplicar alteração<select id="expense-scope" name="scope" value={values.scope} onChange={change}><option value="this">Somente esta ocorrência</option><option value="following">Esta e as próximas</option></select><span className="muted">Exceções individuais, cancelamentos e pagamentos de outras ocorrências serão preservados. Na série, mantenha o mês e ajuste o dia de vencimento.</span>{fieldError('scope')}</label>}
+      {expense?.recurring && <label className="scope-field" htmlFor="expense-scope">Aplicar alteração<select id="expense-scope" name="scope" value={values.scope} onChange={change}><option value="this">Somente esta ocorrência</option><option value="following">Esta e as próximas ainda não realizadas</option></select><span className="muted">Outras exceções, cancelamentos e pagamentos serão preservados. A ocorrência selecionada receberá a alteração solicitada.</span>{fieldError('scope')}</label>}
+      {expense?.recurring && values.scope === 'following' && <label className="scope-field" htmlFor="expense-due_day">Dia padrão dos próximos vencimentos<input id="expense-due_day" name="due_day" type="number" min="1" max="31" value={values.due_day} onChange={change} required /><span className="muted">Dias inexistentes usam o último dia do mês, mantendo o dia padrão nos meses seguintes.</span>{fieldError('due_day')}</label>}
       <label className="essential-choice"><input name="essential" type="checkbox" checked={values.essential} onChange={change} />Esta despesa é essencial para mim</label>
       {fieldError('essential')}
       <p className="muted">Situação: pendente. Esta operação não registra nem altera um pagamento.</p>

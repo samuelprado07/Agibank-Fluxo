@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -56,12 +56,21 @@ class ExpenseSeries(models.Model):
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     cancelled_from = models.DateField(null=True, blank=True)
+    due_day = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(31)])
 
 
 class ExpenseSeriesRevision(models.Model):
     series = models.ForeignKey(ExpenseSeries, on_delete=models.PROTECT, related_name="revisions")
     effective_from = models.DateField()
     values = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ExpenseSeriesHistory(models.Model):
+    series = models.ForeignKey(ExpenseSeries, on_delete=models.PROTECT, related_name="history")
+    action = models.CharField(max_length=20)
+    before = models.JSONField()
+    after = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
 
 
