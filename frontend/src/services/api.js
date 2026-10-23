@@ -72,3 +72,18 @@ export async function savePayment(id, action, values, signal) {
   }
   return result
 }
+
+export const getIncomes = (signal) => expenseRequest('/api/incomes/', { signal })
+export const getIncome = (id, signal) => expenseRequest(`/api/incomes/${id}/`, { signal })
+export const createIncome = (values, signal) => writeExpense('/api/incomes/', 'POST', values, signal)
+export const updateIncome = (id, values, signal) => writeExpense(`/api/incomes/${id}/`, 'PATCH', values, signal)
+export const cancelIncome = (id, signal) => writeExpense(`/api/incomes/${id}/cancel/`, 'POST', {}, signal)
+export const stopIncomeSeries = (id, values, signal) => writeExpense(`/api/income-recurrences/${id}/cancel/`, 'POST', values, signal)
+
+export async function saveReceipt(id, action, values, signal) {
+  const result = await writeExpense(`/api/incomes/${id}/receipt/${action === 'undo' ? 'undo/' : ''}`, action === 'correct' ? 'PATCH' : 'POST', values, signal)
+  if (result?.occurrence_id !== id || !Number.isInteger(result?.receipt?.version)) {
+    throw new Error('Não foi possível consultar a confirmação. Reenvie a mesma operação.')
+  }
+  return result
+}

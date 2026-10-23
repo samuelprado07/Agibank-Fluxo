@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getDashboard } from './services/api.js'
 import Dashboard from './components/Dashboard.jsx'
 import ExpensesPanel from './components/ExpensesPanel.jsx'
+import IncomePanel from './components/IncomePanel.jsx'
 import RecurrenceSettings from './components/RecurrenceSettings.jsx'
 import Navigation from './components/Navigation.jsx'
 import { pages } from './pages.js'
@@ -59,6 +60,7 @@ export default function App() {
         {result.status === 'ready' ? <>
           {page === 'overview' && <Dashboard data={result.data} />}
           {page === 'expenses' && <><div className="page-intro"><p className="eyebrow">ORGANIZAÇÃO DO DIA A DIA</p><h1>Seus compromissos, em ordem.</h1><p>Defina o que é essencial e acompanhe cada vencimento.</p></div><ExpensesPanel onChanged={refreshDashboard} /></>}
+          {page === 'incomes' && <><div className="page-intro"><p className="eyebrow">PLANEJE SUAS ENTRADAS</p><h1>Mais clareza sobre sua renda.</h1><p>Organize suas previsões e acompanhe o que já recebeu.</p></div><IncomePanel onChanged={refreshDashboard} /></>}
           {page === 'recurrences' && <RecurrenceSettings onChanged={refreshDashboard} />}
         </> : <section className="panel state-panel" aria-live="polite"><p className="eyebrow">MEU PLANEJAMENTO</p><h1>{result.status === 'loading' ? 'Preparando seu planejamento…' : result.status === 'empty' ? 'Seu planejamento começa aqui.' : 'Não foi possível carregar os dados.'}</h1>{result.message && <p role="status">{result.message}</p>}{result.status !== 'loading' && <button onClick={() => { setResult({ status: 'loading' }); setAttempt((value) => value + 1) }}>Tentar novamente</button>}</section>}
         <footer><span>agibank <strong>preventivo</strong></span><span>Previsibilidade para suas próximas escolhas.</span></footer>

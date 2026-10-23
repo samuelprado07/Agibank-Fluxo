@@ -126,6 +126,8 @@ input:not([type=checkbox]), select, .payment-form textarea { width: 100%; min-wi
 input[aria-invalid=true], .payment-form textarea[aria-invalid=true] { border-color: #bb5b52; }
 .payment-form textarea { font-family: inherit; resize: vertical; }
 .payment-form fieldset:disabled { opacity: .7; }
+.overdue-incomes { margin-bottom: 24px; border-color: #ecdcc4; }
+.overdue-incomes li { margin: 9px 0; color: #566d86; font-size: .85rem; }
 .essential-choice { display: flex; gap: 10px; align-items: center; font-size: .84rem; color: #596f88; margin: 14px 0; }
 .essential-choice input { width: 18px; height: 18px; accent-color: #285ec0; flex-shrink: 0; }
 .scope-field, .end-date-field { max-width: 600px; margin: 17px 0; }
