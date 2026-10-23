@@ -13,7 +13,7 @@ export default function Dashboard({ data }) {
       <div><p className="eyebrow">BOM TER VOCÊ POR AQUI</p><h1 id="greeting">Olá, Samuel<span>.</span></h1><p className="hero-description">Vamos olhar para os seus próximos dias?</p></div>
       <div className="balance-block"><p>Saldo atual</p><strong className={Number(v.current_balance) < 0 ? 'negative' : ''}>{money(v.current_balance)}</strong><span>Entradas e saídas realizadas até {date(data.reference_date)}</span></div>
     </section>
-    <ProjectionChart days={data.chart_days} />
+    <ProjectionChart days={data.chart_days} analysisDays={data.days} referenceDate={data.reference_date} assumptionDetails={data.assumption_details} />
     {data.overdue_incomes?.length > 0 && <section className="panel overdue-incomes" aria-labelledby="overdue-incomes-title"><div className="panel-heading"><h2 id="overdue-incomes-title">Recebimentos atrasados</h2><a href="#incomes" className="text-button">Conferir renda</a></div><p className="muted">Ainda não confirmados em {date(data.reference_date)}. Não compõem o saldo, a projeção nem o próximo recebimento.</p><ul>{data.overdue_incomes.map((item) => <li key={item.id}><strong>{item.description}</strong> · {money(item.amount)} · esperado em {date(item.date)}</li>)}</ul></section>}
     <div className="overview-bottom">
       <section className="summary-section" aria-labelledby="summary-title"><div className="section-heading"><div><p className="eyebrow">CADA COMPROMISSO CONTA</p><h2 id="summary-title">Seu planejamento em detalhes</h2></div><span>{interval}</span></div>
@@ -26,7 +26,7 @@ export default function Dashboard({ data }) {
           <IndicatorCard label="Saldo projetado final" value={money(v.projected_final)} period={`Ao final de ${date(period.end)}`} note="Considera entradas previstas e saídas cadastradas." negative={Number(v.projected_final) < 0} />
         </div>
       </section>
-      <AlertsPanel alerts={data.alerts} period={period} />
+      <AlertsPanel alerts={data.alerts} period={period} referenceDate={data.reference_date} assumptionDetails={data.assumption_details} />
     </div>
     <AssumptionsPanel assumptions={data.assumptions} warnings={data.warnings} />
   </>

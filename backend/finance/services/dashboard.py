@@ -1,24 +1,38 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from .projection import project
+from django.db import transaction
+
+from finance.models import Scenario
+from .projection import ASSUMPTION_DETAILS, project
 from .recurrences import ensure_occurrences
 from .income_recurrences import ensure_income_occurrences
+from .alerts import attach_relevant_incomes
 
 ZERO = Decimal("0.00")
 
 
-def build_dashboard(scenario):
+@transaction.atomic
+def capture_projection(scenario_id):
+    # SQLite IMMEDIATE protects generation and all inputs from competing writes.
+    scenario = Scenario.objects.get(pk=scenario_id)
     reference = scenario.reference_date
     if scenario.opening_date > reference:
         raise ValueError("A data de abertura não pode ser posterior à referência.")
     ensure_occurrences(scenario, reference + timedelta(days=59))
     ensure_income_occurrences(scenario, reference + timedelta(days=59))
-    warnings = []
     movements = list(scenario.movements.select_related("occurrence").filter(is_voided=False))
     occurrences = list(scenario.occurrences.all())
+    return scenario, movements, occurrences
+
+
+def build_dashboard(scenario):
+    scenario, movements, occurrences = capture_projection(scenario.pk)
+    reference = scenario.reference_date
+    warnings = []
     linked = {}
     balance = scenario.opening_balance
+    realized_income = realized_expenses = ZERO
     for movement in movements:
         if movement.amount <= 0 or movement.direction not in ("income", "expense"):
             warnings.append(f"Movimentação inválida excluída: {movement.description}.")
@@ -33,6 +47,10 @@ def build_dashboard(scenario):
             linked[movement.occurrence_id] = movement
         if movement.date >= scenario.opening_date:
             balance += movement.amount if movement.direction == "income" else -movement.amount
+            if movement.direction == "income":
+                realized_income += movement.amount
+            else:
+                realized_expenses += movement.amount
 
     pending = []
     overdue_incomes = []
@@ -72,20 +90,29 @@ def build_dashboard(scenario):
         if occurrence.direction == "expense" and occurrence.due_date < reference:
             warnings.append(f"Despesa vencida considerada imediata: {occurrence.description} ({occurrence.due_date.isoformat()}).")
         event = {"id": occurrence.pk, "description": occurrence.description, "amount": occurrence.amount, "date": effective, "due_date": occurrence.due_date, "direction": occurrence.direction, "essential": occurrence.essential, "is_estimate": occurrence.is_estimate}
+        event.update({"is_recurring": bool(occurrence.series_id or occurrence.income_series_id), "series_id": occurrence.series_id or occurrence.income_series_id,
+                      "series_type": "expense" if occurrence.series_id else "income" if occurrence.income_series_id else None, "competence": occurrence.competence})
         events.append(event)
         if occurrence.direction == "expense" and occurrence.essential:
             essentials.append(event)
 
     committed = sum((e["amount"] for e in events if e["direction"] == "expense" and e["due_date"] <= next_income.due_date), ZERO) if next_income else None
     days, alerts = project(balance, reference, end, events)
-    income_data = lambda o: {"description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated"}
-    for alert in alerts:
-        relevant = next((o for o in future_income if o.due_date >= alert["date"]), None)
-        alert["next_income"] = income_data(relevant) if relevant else None
+    income_data = lambda o: {"id": o.pk, "description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated"}
+    attach_relevant_incomes(alerts, [income_data(item) for item in future_income], days, end)
     return {
         "scenario": {"name": scenario.name, "opening_date": scenario.opening_date},
         "reference_date": reference,
-        "period": {"start": reference, "end": end, "chart_end": reference + timedelta(days=14), "maximum_days": 60},
+        "period": {"start": reference, "end": end, "chart_start": reference, "chart_end": reference + timedelta(days=14), "chart_days": 15, "analysis_days": (end - reference).days + 1, "maximum_days": 60},
+        "current_balance_basis": {"opening_date": scenario.opening_date, "opening_balance": scenario.opening_balance,
+                                  "reference_date": reference, "includes_reference_day": True, "realized_income": realized_income,
+                                  "realized_expenses": realized_expenses, "current_balance": balance},
+        "projection_policy": {"same_day_order": "expenses_then_income_then_id", "overdue_expenses": "immediate_at_reference",
+                              "overdue_income": "excluded_until_confirmation_or_rescheduling", "reference_opening": "current_balance_after_realized",
+                              "horizon": "at_least_15_days_through_next_income_or_60_days", "inclusive_dates": True},
+        "assumption_details": dict(ASSUMPTION_DETAILS),
+        "alert_policy": {"interval": "continuous_negative_steps", "zero_exit": "deficit_closed_without_margin", "same_day_zero_and_deficit": "separate_observations",
+                         "expense_scope": "context_of_episode_dates", "income_dependency": "estimated_entries_reducing_the_observed_deficit"},
         "next_income": income_data(next_income) if next_income else None,
         "next_incomes": [income_data(item) for item in future_income if next_income and item.due_date == next_income.due_date],
         "overdue_incomes": overdue_incomes,
