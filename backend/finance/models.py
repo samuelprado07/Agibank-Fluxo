@@ -2,9 +2,11 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.conf import settings
 
 
 class Scenario(models.Model):
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="financial_scenario")
     name = models.CharField(max_length=120)
     opening_date = models.DateField()
     reference_date = models.DateField()

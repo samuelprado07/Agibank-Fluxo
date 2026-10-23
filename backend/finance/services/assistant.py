@@ -42,7 +42,7 @@ def validate_answer(answer, facts):
     return '\n\n'.join(paragraphs), list(references.values())
 
 
-def respond(payload):
+def respond(payload, *, scenario):
     if not isinstance(payload, dict) or set(payload) - {'message', 'projection_version', 'alternative_token', 'history_token'}:
         raise AssistantError('Campos adicionais não são permitidos.')
     message = payload.get('message')
@@ -51,7 +51,7 @@ def respond(payload):
     for key, limit in [('projection_version', 64), ('alternative_token', 20000), ('history_token', 80000)]:
         if payload.get(key) is not None and (not isinstance(payload[key], str) or len(payload[key]) > limit):
             raise AssistantError('Dados de consulta inválidos.')
-    context = capture_context(payload.get('alternative_token'))
+    context = capture_context(payload.get('alternative_token'), scenario=scenario)
     if payload.get('projection_version') != context['projection_version']:
         raise AssistantError('O planejamento mudou. Atualize a projeção antes de perguntar.', 'stale_projection', 409)
     history = []
@@ -59,6 +59,8 @@ def respond(payload):
         try:
             previous = signing.loads(payload['history_token'], salt=HISTORY_SALT)
             if not isinstance(previous, dict):
+                raise signing.BadSignature()
+            if previous.get('scenario_id') != scenario.pk or previous.get('owner_id') != scenario.owner_id:
                 raise signing.BadSignature()
             if previous.get('version') == context['projection_version'] and previous.get('alternative_version') == metadata(context)['alternative_version']:
                 history = previous.get('turns', [])[-3:]
@@ -79,7 +81,7 @@ def respond(payload):
             raise
         fallback_reason = error.code
         text, references = validate_answer(local_explanation(context), facts)
-    current = capture_context()
+    current = capture_context(scenario=scenario)
     version = context['projection_version']
     alternative_version = metadata(context)['alternative_version']
     mode = 'local' if fallback_reason else 'gemini'
@@ -89,5 +91,5 @@ def respond(payload):
             'template_version': TEMPLATE_VERSION if fallback_reason else None,
             'label': LABEL if fallback_reason else 'Gemini',
             'stale': current['projection_version'] != version, 'current_projection_version': current['projection_version'],
-            'history_token': signing.dumps({'version': version, 'alternative_version': alternative_version, 'turns': turns}, salt=HISTORY_SALT, compress=True),
+            'history_token': signing.dumps({'version': version, 'alternative_version': alternative_version, 'turns': turns, 'scenario_id': scenario.pk, 'owner_id': scenario.owner_id}, salt=HISTORY_SALT, compress=True),
             'limitations': 'Orientação informativa baseada em estimativas. Não garante recebimentos nem resultados; necessidades essenciais não devem ser cortadas automaticamente.'}

@@ -11,8 +11,8 @@ from .services.expenses import ExpenseConflict, cancel_expense, create_expense, 
 from .services.recurrences import ensure_occurrences
 
 
-def _active_scenario():
-    return Scenario.objects.order_by("pk").first()
+def _active_scenario(request):
+    return request.scenario
 
 
 def _missing_scenario():
@@ -34,7 +34,7 @@ def read_payload(request):
 @ensure_csrf_cookie
 @require_http_methods(["GET", "HEAD", "POST"])
 def expense_collection(request):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     if request.method in ("GET", "HEAD"):
@@ -54,7 +54,7 @@ def expense_collection(request):
 @require_http_methods(["GET", "HEAD", "PATCH", "DELETE"])
 @transaction.atomic
 def expense_detail(request, expense_id):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     expense = scenario.occurrences.select_for_update().filter(pk=expense_id, direction=Occurrence.Direction.EXPENSE).first()
@@ -84,7 +84,7 @@ def expense_detail(request, expense_id):
 @require_http_methods(["POST"])
 @transaction.atomic
 def expense_cancel(request, expense_id):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     expense = scenario.occurrences.select_for_update().filter(pk=expense_id, direction="expense").first()

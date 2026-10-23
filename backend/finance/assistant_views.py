@@ -17,11 +17,11 @@ def assistant(request, action):
         return JsonResponse({'message': 'Método não permitido.'}, status=405)
     try:
         if action == 'context':
-            return JsonResponse(metadata(capture_context()))
+            return JsonResponse(metadata(capture_context(scenario=request.scenario)))
         payload, error = read_payload(request)
         if error is not None:
             return error
-        return JsonResponse(respond(payload))
+        return JsonResponse(respond(payload, scenario=request.scenario))
     except AssistantError as error:
         return JsonResponse({'message': str(error), 'code': error.code}, status=error.status)
     except (SimulationError, ExpenseConflict) as error:

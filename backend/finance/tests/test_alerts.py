@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -100,10 +101,10 @@ class PreventiveAlertTests(SimpleTestCase):
         self.assertEqual(risk["end_sequence"], 2)
 
 
-class AlertApiTests(TestCase):
+class AlertApiTests(AuthenticatedTestCase):
     def setUp(self):
         self.reference = date(2026, 10, 23)
-        self.scenario = Scenario.objects.create(name="Alertas", opening_date=self.reference, reference_date=self.reference, opening_balance="100.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Alertas", opening_date=self.reference, reference_date=self.reference, opening_balance="100.00")
 
     def event(self, amount, offset, direction="expense", status="pending"):
         return Occurrence.objects.create(scenario=self.scenario, description=direction, amount=amount, direction=direction, status=status, due_date=self.reference + timedelta(days=offset))

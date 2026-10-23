@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 from uuid import uuid4
@@ -11,9 +12,9 @@ from django.test import Client, TestCase, TransactionTestCase
 from finance.models import ExpenseSeries, Movement, Occurrence, PaymentHistory, PaymentOperation, Scenario
 
 
-class PaymentTests(TestCase):
+class PaymentTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Pagamentos", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Pagamentos", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
         self.expense = Occurrence.objects.create(scenario=self.scenario, description="Luz", amount="120.00", due_date=date(2026, 10, 25), direction="expense", essential=True)
         self.url = f"/api/expenses/{self.expense.pk}/payment/"
 
@@ -127,13 +128,13 @@ class PaymentTests(TestCase):
         self.assertEqual(PaymentHistory.objects.count(), 1)
 
     def test_payment_requires_csrf(self):
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         self.assertEqual(client.post(self.url, data="{}", content_type="application/json").status_code, 403)
 
 
-class ConcurrentPaymentTests(TransactionTestCase):
+class ConcurrentPaymentTests(AuthenticatedTransactionTestCase):
     def setUp(self):
-        scenario = Scenario.objects.create(name="Concorrência", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
+        scenario = Scenario.objects.create(owner=self.user, name="Concorrência", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
         self.expense = Occurrence.objects.create(scenario=scenario, description="Luz", amount="120.00", due_date=date(2026, 10, 25), direction="expense")
 
     def race(self, keys):
@@ -143,7 +144,7 @@ class ConcurrentPaymentTests(TransactionTestCase):
             close_old_connections()
             try:
                 barrier.wait(timeout=10)
-                response = Client().post(f"/api/expenses/{self.expense.pk}/payment/", data=json.dumps({"key": key, "version": 0, "amount": "120.00", "date": "2026-10-22"}), content_type="application/json")
+                response = self.auth_client().post(f"/api/expenses/{self.expense.pk}/payment/", data=json.dumps({"key": key, "version": 0, "amount": "120.00", "date": "2026-10-22"}), content_type="application/json")
                 return response.status_code, response.json()
             finally:
                 close_old_connections()

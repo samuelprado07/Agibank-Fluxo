@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getDashboard } from './services/api.js'
+import { getDashboard, getSession, logoutAccount } from './services/api.js'
 import Dashboard from './components/Dashboard.jsx'
 import ExpensesPanel from './components/ExpensesPanel.jsx'
 import IncomePanel from './components/IncomePanel.jsx'
@@ -8,10 +8,28 @@ import Navigation from './components/Navigation.jsx'
 import SimulationPanel from './components/SimulationPanel.jsx'
 import AssistantPanel from './components/AssistantPanel.jsx'
 import { pages } from './pages.js'
+import RegisterScreen from './components/RegisterScreen.jsx'
 
 const currentPage = () => Object.hasOwn(pages, window.location.hash.slice(1)) ? window.location.hash.slice(1) : 'overview'
 
 export default function App() {
+  const [auth, setAuth] = useState({ status: 'loading', user: null })
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    getSession(AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]))
+      .then((data) => { if (!controller.signal.aborted) setAuth({ status: 'ready', user: data.user }) })
+      .catch(() => { if (!controller.signal.aborted) setAuth({ status: 'error', user: null }) })
+    const expired = () => setAuth({ status: 'ready', user: null })
+    window.addEventListener('agibank:session-expired', expired)
+    return () => { controller.abort(); window.removeEventListener('agibank:session-expired', expired) }
+  }, [attempt])
+  if (auth.status !== 'ready') return <main className="auth-loading"><section className="panel"><h1>Agibank Fluxo</h1><p role="status">{auth.status === 'loading' ? 'Preparando seu acesso…' : 'Não foi possível conectar ao serviço.'}</p>{auth.status === 'error' && <button onClick={() => { setAuth({ status: 'loading', user: null }); setAttempt((value) => value + 1) }}>Tentar novamente</button>}</section></main>
+  if (!auth.user) return <RegisterScreen onRegistered={(user) => { window.location.hash = 'overview'; setAuth({ status: 'ready', user }) }} />
+  return <PlanningApp key={auth.user.id} user={auth.user} onLogout={() => setAuth({ status: 'ready', user: null })} />
+}
+
+function PlanningApp({ user, onLogout }) {
   const [page, setPage] = useState(currentPage)
   const [result, setResult] = useState({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -65,13 +83,13 @@ export default function App() {
 
   return <div className="app-shell">
     <a href="#main-content" className="skip-link">Ir para o conteúdo</a>
-    <Navigation page={page} />
+    <Navigation page={page} user={user} onLogout={async () => { await logoutAccount(AbortSignal.timeout(10000)); onLogout() }} />
     <div className="workspace">
       <main id="main-content" tabIndex="-1">
         {page !== 'overview' && <a href="#overview" className="back-home" aria-label="Voltar ao início"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg></a>}
         {refreshMessage && <div className="dashboard-refresh"><p role="status">{refreshMessage}</p><button type="button" className="text-button" onClick={refreshDashboard}>Atualizar</button></div>}
         {result.status === 'ready' ? <>
-          {page === 'overview' && <Dashboard data={result.data} />}
+          {page === 'overview' && <Dashboard data={result.data} user={user} />}
           {page === 'expenses' && <><div className="page-intro"><p className="eyebrow">ORGANIZAÇÃO DO DIA A DIA</p><h1>Seus compromissos, em ordem.</h1><p>Defina o que é essencial e acompanhe cada vencimento.</p></div><ExpensesPanel onChanged={refreshDashboard} /></>}
           {page === 'incomes' && <><div className="page-intro"><p className="eyebrow">PLANEJE SUAS ENTRADAS</p><h1>Mais clareza sobre sua renda.</h1><p>Organize suas previsões e acompanhe o que já recebeu.</p></div><IncomePanel onChanged={refreshDashboard} /></>}
           {page === 'recurrences' && <RecurrenceSettings onChanged={refreshDashboard} />}

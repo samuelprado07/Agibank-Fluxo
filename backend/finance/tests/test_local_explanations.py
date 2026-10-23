@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from unittest.mock import patch
 from django.test import TestCase
@@ -8,7 +9,7 @@ from finance.services.projection_context import AssistantError
 from . import test_assistant as baseline
 
 
-class LocalExplanationTests(TestCase):
+class LocalExplanationTests(AuthenticatedTestCase):
     setUp = baseline.AssistantTests.setUp
     context = baseline.AssistantTests.context
     send = baseline.AssistantTests.send

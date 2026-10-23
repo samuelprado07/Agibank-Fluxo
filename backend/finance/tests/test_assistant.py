@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 from unittest.mock import patch
@@ -7,9 +8,9 @@ from django.test.utils import CaptureQueriesContext
 from finance.models import Scenario, Occurrence, Movement
 
 
-class AssistantTests(TestCase):
+class AssistantTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name='Teste', opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 23), opening_balance='100.00')
+        self.scenario = Scenario.objects.create(owner=self.user, name='Teste', opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 23), opening_balance='100.00')
         self.expense = Occurrence.objects.create(scenario=self.scenario, description='Aluguel', amount='150.00', due_date=date(2026, 10, 24), direction='expense', essential=True)
         Occurrence.objects.create(scenario=self.scenario, description='Renda', amount='200.00', due_date=date(2026, 10, 30), direction='income')
 
@@ -98,7 +99,7 @@ class AssistantTests(TestCase):
         self.assertEqual(self.send(alternative_token='inválido').status_code, 400)
 
     def test_csrf_is_required(self):
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         self.assertEqual(client.get('/api/assistant/context/').status_code, 200)
         self.assertIn('csrftoken', client.cookies)
         self.assertEqual(client.post('/api/assistant/messages/', '{}', content_type='application/json').status_code, 403)

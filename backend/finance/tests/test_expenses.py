@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 
@@ -6,9 +7,9 @@ from django.test import Client, TestCase
 from finance.models import Occurrence, Scenario
 
 
-class ExpenseApiTests(TestCase):
+class ExpenseApiTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Despesas", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Despesas", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
         self.payload = {"description": "Conta de luz", "amount": "120.35", "category": "Moradia", "due_date": "2026-10-25", "essential": True}
 
     def create_expense(self, payload=None, client=None):
@@ -59,7 +60,7 @@ class ExpenseApiTests(TestCase):
         self.assertEqual(self.client.post("/api/expenses/", data=self.payload).status_code, 415)
 
     def test_write_requires_csrf_and_accepts_valid_token_from_bootstrap(self):
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         self.assertEqual(self.create_expense(client=client).status_code, 403)
         client.get("/api/expenses/")
         token = client.cookies["csrftoken"].value
@@ -86,7 +87,7 @@ class ExpenseApiTests(TestCase):
 
     def test_all_write_routes_reject_missing_csrf_and_income_targets(self):
         expense = self.create_expense().json()
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         for method, path in [("patch", f"/api/expenses/{expense['id']}/"), ("delete", f"/api/expenses/{expense['id']}/"), ("post", f"/api/expenses/{expense['id']}/cancel/")]:
             response = getattr(client, method)(path, data="{}", content_type="application/json")
             self.assertEqual(response.status_code, 403)

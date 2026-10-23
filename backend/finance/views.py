@@ -9,7 +9,7 @@ from .services.dashboard import build_dashboard
 @require_safe
 def dashboard(request):
     try:
-        scenario = Scenario.objects.order_by("pk").first()
+        scenario = request.scenario
         if scenario is None:
             return JsonResponse({"code": "no_scenario", "message": "Nenhum planejamento financeiro cadastrado."}, status=404)
         data = build_dashboard(scenario)

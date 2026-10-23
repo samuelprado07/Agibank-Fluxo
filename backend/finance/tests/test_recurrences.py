@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 
@@ -6,9 +7,9 @@ from django.test import TestCase
 from finance.models import ExpenseHistory, Movement, Occurrence, Scenario
 
 
-class ExpenseLifecycleTests(TestCase):
+class ExpenseLifecycleTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Mensal", opening_date=date(2026, 1, 1), reference_date=date(2026, 1, 15), opening_balance="1500.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Mensal", opening_date=date(2026, 1, 1), reference_date=date(2026, 1, 15), opening_balance="1500.00")
         self.payload = {"description": "Aluguel", "amount": "500.00", "category": "Moradia", "due_date": "2026-01-31", "essential": True}
 
     def request(self, method, path, payload=None):

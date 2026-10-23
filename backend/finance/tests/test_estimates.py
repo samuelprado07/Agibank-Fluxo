@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 from uuid import uuid4
@@ -7,9 +8,9 @@ from django.test import TestCase
 from finance.models import Movement, Occurrence, Scenario
 
 
-class EstimateTests(TestCase):
+class EstimateTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Estimativas", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Estimativas", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
         Occurrence.objects.create(scenario=self.scenario, description="Renda", direction="income", amount="1000.00", due_date=date(2026, 11, 1))
         self.payload = {"description": "Alimentação", "amount": "30.00", "category": "Alimentação", "due_date": "2026-10-24", "essential": False, "is_estimate": True}
 

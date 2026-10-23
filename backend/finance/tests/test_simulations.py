@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -13,9 +14,9 @@ from django.db import connection
 from finance.models import ExpenseHistory, ExpenseSeries, Movement, Occurrence, Scenario
 
 
-class SimulationTests(TestCase):
+class SimulationTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Alternativas", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 23), opening_balance="100.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Alternativas", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 23), opening_balance="100.00")
         self.expense = Occurrence.objects.create(scenario=self.scenario, description="Conta", amount="150.00", due_date=date(2026, 10, 24), direction="expense")
         self.income = Occurrence.objects.create(scenario=self.scenario, description="Renda", amount="200.00", due_date=date(2026, 11, 12), direction="income")
 
@@ -146,18 +147,18 @@ class SimulationTests(TestCase):
         self.assertEqual(str(second.amount), "30.00")
 
     def test_context_and_writes_require_csrf_and_no_multiple_targets(self):
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         self.assertEqual(client.post("/api/simulations/preview/", data='{}', content_type="application/json").status_code, 403)
         self.assertEqual(client.get("/api/simulations/context/").status_code, 200)
         self.assertIn("csrftoken", client.cookies)
         self.assertEqual(self.client.post("/api/simulations/preview/", data='{"changes":[]}', content_type="application/json").status_code, 400)
 
 
-class ConcurrentSimulationTests(TransactionTestCase):
+class ConcurrentSimulationTests(AuthenticatedTransactionTestCase):
     def test_repeated_simultaneous_apply_is_one_change(self):
-        scenario = Scenario.objects.create(name="Concorrência", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 23), opening_balance="100.00")
+        scenario = Scenario.objects.create(owner=self.user, name="Concorrência", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 23), opening_balance="100.00")
         expense = Occurrence.objects.create(scenario=scenario, description="Conta", amount="150.00", direction="expense", due_date=date(2026, 10, 24))
-        response = Client().post("/api/simulations/preview/", data=json.dumps({"occurrence_id": expense.pk, "changes": {"amount": "50.00"}}), content_type="application/json")
+        response = self.auth_client().post("/api/simulations/preview/", data=json.dumps({"occurrence_id": expense.pk, "changes": {"amount": "50.00"}}), content_type="application/json")
         self.assertEqual(response.status_code, 200)
         payload = {"preview_token": response.json()["preview_token"], "key": str(uuid4())}
         barrier = Barrier(2)
@@ -165,7 +166,7 @@ class ConcurrentSimulationTests(TransactionTestCase):
             close_old_connections()
             try:
                 barrier.wait(timeout=10)
-                result = Client().post("/api/simulations/apply/", data=json.dumps(payload), content_type="application/json")
+                result = self.auth_client().post("/api/simulations/apply/", data=json.dumps(payload), content_type="application/json")
                 return result.status_code, result.json()
             finally:
                 close_old_connections()

@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from decimal import Decimal
@@ -38,10 +39,10 @@ class ProjectionTraceTests(SimpleTestCase):
         self.assertIn("no_events", empty["assumption_codes"])
 
 
-class ProjectionApiTests(TestCase):
+class ProjectionApiTests(AuthenticatedTestCase):
     def setUp(self):
         self.reference = date(2026, 10, 22)
-        self.scenario = Scenario.objects.create(name="Projeção", opening_date=date(2026, 10, 1), reference_date=self.reference, opening_balance="1000.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Projeção", opening_date=date(2026, 10, 1), reference_date=self.reference, opening_balance="1000.00")
 
     def test_reference_cutoff_overdue_dates_and_event_origins(self):
         paid = Occurrence.objects.create(scenario=self.scenario, description="Pago", amount="100.00", due_date=self.reference, direction="expense", status="settled")
@@ -97,10 +98,10 @@ class ProjectionApiTests(TestCase):
                 self.client.get("/api/dashboard/")
 
 
-class ProjectionSnapshotTests(TransactionTestCase):
+class ProjectionSnapshotTests(AuthenticatedTransactionTestCase):
     def test_confirmation_cannot_split_movement_and_occurrence_capture(self):
         reference = date(2026, 10, 22)
-        scenario = Scenario.objects.create(name="Snapshot", opening_date=date(2026, 10, 1), reference_date=reference, opening_balance="1000.00")
+        scenario = Scenario.objects.create(owner=self.user, name="Snapshot", opening_date=date(2026, 10, 1), reference_date=reference, opening_balance="1000.00")
         expense = Occurrence.objects.create(scenario=scenario, description="Conta", amount="100.00", due_date=reference, direction="expense")
         capture_paused, resume_capture, writer_started, writer_done = Event(), Event(), Event(), Event()
 
@@ -122,7 +123,7 @@ class ProjectionSnapshotTests(TransactionTestCase):
             close_old_connections()
             writer_started.set()
             try:
-                return change_payment(expense.pk, "confirm", {"key": str(uuid4()), "version": 0, "amount": "80.00", "date": reference.isoformat()})
+                return change_payment(expense.pk, "confirm", {"key": str(uuid4()), "version": 0, "amount": "80.00", "date": reference.isoformat()}, scenario=scenario)
             finally:
                 writer_done.set()
                 close_old_connections()

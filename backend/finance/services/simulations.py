@@ -25,8 +25,7 @@ class SimulationError(Exception):
         self.errors = errors or {}
 
 
-def active_scenario():
-    scenario = Scenario.objects.order_by("pk").first()
+def active_scenario(scenario):
     if scenario is None:
         raise SimulationError("Nenhum planejamento financeiro cadastrado.", 404)
     return scenario
@@ -104,10 +103,10 @@ def compare(scenario, movements, occurrences, occurrence, changes, *, fixed_end=
 
 
 @transaction.atomic
-def preview(payload):
+def preview(payload, *, scenario):
     if payload.keys() - {"occurrence_id", "changes"}:
         raise SimulationError("Campos adicionais não são permitidos na prévia.")
-    scenario = active_scenario()
+    scenario = active_scenario(scenario)
     scenario, movements, occurrences = capture_projection(scenario.pk, materialize=False)
     occurrence = target(scenario, payload.get("occurrence_id"))
     changes, _ = validated_change(occurrence, payload.get("changes"))
@@ -122,7 +121,8 @@ def preview(payload):
 
 
 @transaction.atomic
-def apply_preview(payload):
+def apply_preview(payload, *, scenario):
+    scenario = active_scenario(scenario)
     if set(payload) != {"preview_token", "key"} or not isinstance(payload.get("preview_token"), str) or not isinstance(payload.get("key"), str):
         raise SimulationError("Informe o token da prévia e a chave da aplicação.")
     try:
@@ -133,10 +133,12 @@ def apply_preview(payload):
     digest = hashlib.sha256(payload["preview_token"].encode()).hexdigest()
     previous = SimulationApplication.objects.filter(key=key).first()
     if previous:
+        if previous.occurrence.scenario_id != scenario.pk:
+            raise SimulationError("Esta chave já foi utilizada em outra operação.", 409)
         if previous.token_digest != digest:
             raise SimulationError("Esta chave já foi utilizada para outra alternativa.", 409)
         return previous.result
-    scenario = active_scenario()
+    scenario = active_scenario(scenario)
     if data.get("version") != VERSION or data.get("scenario_id") != scenario.pk or data.get("fingerprint") != fingerprint(scenario):
         raise SimulationError("O planejamento mudou após a prévia. Atualize os dados e simule novamente.", 409)
     scenario, movements, occurrences = capture_projection(scenario.pk, materialize=False)
@@ -158,8 +160,8 @@ def apply_preview(payload):
 
 
 @transaction.atomic
-def context():
-    scenario = active_scenario()
+def context(*, scenario):
+    scenario = active_scenario(scenario)
     linked = Movement.objects.filter(scenario=scenario, is_voided=False, occurrence__isnull=False).values_list("occurrence_id", flat=True)
     rows = scenario.occurrences.filter(status="pending", direction__in=("expense", "income")).exclude(pk__in=linked).order_by("due_date", "pk")
     return {"reference_date": scenario.reference_date, "occurrences": [{"id": row.pk, "description": row.description, "amount": row.amount,
