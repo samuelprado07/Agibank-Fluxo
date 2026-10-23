@@ -22,10 +22,10 @@ def effective_values(series, competence):
     return values
 
 
-@transaction.atomic
-def ensure_occurrences(scenario, horizon):
-    """Persist missing months only; never overwrite exceptions, payments or exclusions."""
-    for series in scenario.expense_series.select_for_update().all():
+def missing_occurrences(scenario, horizon):
+    """Build unsaved missing months; consult without changing the scenario."""
+    result = []
+    for series in scenario.expense_series.order_by("pk"):
         existing = set(series.occurrences.values_list("competence", flat=True))
         excluded = set(series.exclusions.values_list("competence", flat=True))
         # Last edit wins among applicable revisions, including edits made
@@ -47,4 +47,10 @@ def ensure_occurrences(scenario, horizon):
                 month = date(month.year + 1, 1, 1)
             else:
                 month = date(month.year, month.month + 1, 1)
-        Occurrence.objects.bulk_create(pending, ignore_conflicts=True)
+        result.extend(pending)
+    return result
+
+
+@transaction.atomic
+def ensure_occurrences(scenario, horizon):
+    Occurrence.objects.bulk_create(missing_occurrences(scenario, horizon), ignore_conflicts=True)

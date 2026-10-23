@@ -19,9 +19,9 @@ def monthly_date(competence, day):
     return date(competence.year, competence.month, min(day, monthrange(competence.year, competence.month)[1]))
 
 
-@transaction.atomic
-def ensure_income_occurrences(scenario, horizon):
-    for series in scenario.income_series.select_for_update().all():
+def missing_income_occurrences(scenario, horizon):
+    result = []
+    for series in scenario.income_series.order_by("pk"):
         existing = set(series.occurrences.values_list("competence", flat=True))
         revisions = list(series.revisions.order_by("pk"))
         month = month_of(series.start_date)
@@ -37,4 +37,10 @@ def ensure_income_occurrences(scenario, horizon):
             if month.year == 9999 and month.month == 12:
                 break
             month = date(month.year + (month.month == 12), month.month % 12 + 1, 1)
-        Occurrence.objects.bulk_create(pending, ignore_conflicts=True)
+        result.extend(pending)
+    return result
+
+
+@transaction.atomic
+def ensure_income_occurrences(scenario, horizon):
+    Occurrence.objects.bulk_create(missing_income_occurrences(scenario, horizon), ignore_conflicts=True)

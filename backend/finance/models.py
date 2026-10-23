@@ -62,6 +62,14 @@ class PaymentOperation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class SimulationApplication(models.Model):
+    key = models.UUIDField(unique=True)
+    token_digest = models.CharField(max_length=64)
+    occurrence = models.ForeignKey(Occurrence, on_delete=models.PROTECT, related_name="simulation_applications")
+    result = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class PaymentHistory(models.Model):
     movement = models.ForeignKey(Movement, on_delete=models.PROTECT, related_name="payment_history")
     operation = models.OneToOneField(PaymentOperation, on_delete=models.PROTECT)
