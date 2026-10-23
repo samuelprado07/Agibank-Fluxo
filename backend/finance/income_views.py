@@ -34,7 +34,7 @@ def income_errors(view):
 @require_http_methods(["GET", "HEAD", "POST"])
 @income_errors
 def income_collection(request):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     if request.method in ("GET", "HEAD"):
@@ -52,7 +52,7 @@ def income_collection(request):
 @income_errors
 @transaction.atomic
 def income_detail(request, income_id, cancel=False):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     income = scenario.occurrences.select_for_update().filter(pk=income_id, direction="income").first()
@@ -84,14 +84,14 @@ def income_receipt(request, income_id, undo=False):
     payload, error = read_payload(request)
     if error is not None:
         return error
-    return JsonResponse(change_receipt(income_id, "undo" if undo else "correct" if request.method == "PATCH" else "confirm", payload))
+    return JsonResponse(change_receipt(income_id, "undo" if undo else "correct" if request.method == "PATCH" else "confirm", payload, scenario=request.scenario))
 
 
 @require_http_methods(["POST"])
 @income_errors
 @transaction.atomic
 def income_series_cancel(request, series_id):
-    series = IncomeSeries.objects.select_for_update().filter(pk=series_id, scenario=_active_scenario()).first()
+    series = IncomeSeries.objects.select_for_update().filter(pk=series_id, scenario=_active_scenario(request)).first()
     if series is None:
         return JsonResponse({"message": "Renda mensal não encontrada."}, status=404)
     payload, error = read_payload(request)

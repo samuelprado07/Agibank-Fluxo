@@ -53,22 +53,21 @@ def snapshot(movement):
 
 
 @transaction.atomic
-def change_payment(expense_id, action, payload, *, income=False):
+def change_payment(expense_id, action, payload, *, scenario, income=False):
     # Both directions share the same lock, idempotency and audit contract.
     operation_model = ReceiptOperation if income else PaymentOperation
     history_model = ReceiptHistory if income else PaymentHistory
     direction = "income" if income else "expense"
     key = validate(payload, action)
-    fingerprint = hashlib.sha256(json.dumps([expense_id, action, payload], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps([scenario.pk if scenario else None, expense_id, action, payload], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    expense = Occurrence.objects.select_for_update().filter(pk=expense_id, scenario=scenario, direction=direction).first()
+    if expense is None:
+        raise PaymentError("Despesa não encontrada.", 404)
     previous = operation_model.objects.filter(key=key).first()
     if previous:
         if previous.fingerprint != fingerprint:
             raise PaymentError("Esta chave já foi utilizada com outros dados.")
         return previous.result
-    scenario = Scenario.objects.order_by("pk").first()
-    expense = Occurrence.objects.select_for_update().filter(pk=expense_id, scenario=scenario, direction=direction).first()
-    if expense is None:
-        raise PaymentError("Despesa não encontrada.", 404)
     movement = Movement.objects.select_for_update().filter(occurrence=expense).first()
     if payload["version"] != (movement.version if movement else 0):
         raise PaymentError("Este pagamento foi alterado. Atualize a lista antes de continuar.")

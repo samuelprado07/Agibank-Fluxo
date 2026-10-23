@@ -121,7 +121,7 @@ def build_from_snapshot(scenario, movements, occurrences, *, fixed_end=None):
     income_data = lambda o: {"id": o.pk, "description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated", "outside_analysis": o.due_date > end}
     attach_relevant_incomes(alerts, [income_data(item) for item in future_income], days, end)
     result = {
-        "scenario": {"name": scenario.name, "opening_date": scenario.opening_date},
+        "scenario": {"id": scenario.pk, "name": scenario.name, "opening_date": scenario.opening_date},
         "reference_date": reference,
         "period": {"start": reference, "end": end, "chart_start": reference, "chart_end": reference + timedelta(days=14), "chart_days": 15, "analysis_days": (end - reference).days + 1, "maximum_days": 60},
         "current_balance_basis": {"opening_date": scenario.opening_date, "opening_balance": scenario.opening_balance,

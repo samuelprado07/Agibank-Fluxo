@@ -2,9 +2,9 @@
 
 Aplicação de planejamento financeiro preventivo voltada especialmente a aposentados, pensionistas e pessoas com renda limitada. O objetivo é antecipar possíveis faltas de saldo, ajudar o cliente a compreender seus compromissos e avaliar alternativas antes que a situação se agrave.
 
-O sistema utiliza cenários financeiros simulados com entradas, despesas e pagamentos persistidos no banco local. Não possui integração bancária real nem executa transações financeiras.
-
 ## Funcionalidades
+
+- Cadastro com nome, e-mail e senha, abertura automática de sessão e planejamento separado por usuário.
 
 - Dashboard com saldo atual, próximo recebimento, despesas essenciais e projeção diária inicial de 15 dias. A análise pode se estender até o próximo recebimento, respeitando o limite de 60 dias.
 - Alertas de insuficiência e ausência de margem, incluindo situações em que o saldo fica negativo durante o dia e termina positivo. Os marcadores do gráfico abrem um resumo dos compromissos em risco.
@@ -71,8 +71,6 @@ O Django carrega esse arquivo sem sobrescrever variáveis já definidas no proce
 python -m venv backend/.venv
 ```
 
-Se `python` abrir a Microsoft Store ou não for reconhecido, utilize `py -3.12 -m venv backend/.venv` ou o caminho de uma instalação funcional do Python. Se aparecer “No pyvenv.cfg file”, recrie o ambiente virtual com um interpretador funcional e reinstale as dependências. Não copie a pasta `.venv` entre computadores.
-
 ### 3. Instalar as dependências do backend
 
 ```powershell
@@ -95,7 +93,7 @@ O SQLite será criado em `backend/db.sqlite3`. Não é necessário instalar um s
 
 Esse comando cria o cenário inicial com referência em **22/10/2026**, sem apagar os registros existentes. Ao executá-lo novamente, o cenário de mesmo nome é preservado, sem duplicar sua carga. As datas exibidas seguem a referência do cenário, não o relógio do computador.
 
-Sem cenário cadastrado, o dashboard apresenta o estado inicial sem dados. A aplicação local utiliza o primeiro cenário cadastrado; não há seleção de múltiplos clientes.
+Sem cenário cadastrado, o dashboard apresenta o estado inicial sem dados. O primeiro usuário cadastrado recebe o primeiro cenário ainda sem proprietário. As contas seguintes começam com um planejamento vazio e saldo zero; cada conta acessa somente seus próprios dados.
 
 ### 6. Instalar as dependências do frontend
 
@@ -124,6 +122,14 @@ npm run dev --prefix frontend
 Abra [http://127.0.0.1:5173](http://127.0.0.1:5173). O Vite encaminha as chamadas `/api/` ao Django em `127.0.0.1:8000`. As portas devem estar disponíveis. Encerre cada servidor com `Ctrl+C` no respectivo terminal.
 
 Nas próximas execuções, basta iniciar os dois servidores. Após atualizar o código, instale novamente as dependências caso seus arquivos tenham mudado e execute `migrate` quando houver novas migrações. Não é necessário recarregar o cenário inicial para preservar seu uso normal.
+
+## Cadastro e sessão
+
+Ao abrir a aplicação sem sessão, preencha nome, e-mail, senha e confirmação para criar sua conta. O cadastro inicia a sessão automaticamente. O nome informado passa a aparecer no dashboard, e a opção **Sair da conta** encerra a sessão.
+
+A tela de login por e-mail e senha será adicionada na branch seguinte. Nesta etapa, o acesso começa pelo cadastro; evite sair da sua conta se precisar continuar usando-a antes da entrega do login.
+
+As senhas são protegidas pelo hash do Django. As rotas financeiras exigem sessão, e a migração `0008_scenario_owner` vincula cada planejamento ao proprietário sem apagar os registros existentes. Execute `migrate` antes de iniciar esta versão. O assistente e as simulações também respeitam o proprietário dos dados.
 
 ## Como o assistente funciona
 
@@ -157,6 +163,6 @@ Os testes automatizados do assistente simulam o provedor, sem consumir a API Gem
 
 ## Limites do MVP
 
-Execução local, cenário único e ausência de autenticação e infraestrutura de produção. Os registros representam um planejamento, sem conexão com contas bancárias ou canais reais de atendimento. Nenhuma projeção autoriza ou executa pagamentos. A opção de atendimento humano registra apenas uma solicitação local no chat.
+Execução local, um cenário por usuário e ausência de infraestrutura de produção. O cadastro ainda não inclui confirmação de e-mail ou recuperação de senha. Os registros representam um planejamento, sem conexão com contas bancárias ou canais reais de atendimento. Nenhuma projeção autoriza ou executa pagamentos. A opção de atendimento humano registra apenas uma solicitação local no chat.
 
 O Git ignora `.env`, ambiente virtual, dependências, banco SQLite e arquivos de build. O `.env.example`, os arquivos de dependências e as migrações devem acompanhar o repositório para permitir configurar o projeto em outra máquina.

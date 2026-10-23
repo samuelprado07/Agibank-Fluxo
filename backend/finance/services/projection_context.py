@@ -17,8 +17,8 @@ class AssistantError(Exception):
 
 
 @transaction.atomic
-def capture_context(alternative_token=None):
-    scenario = active_scenario()
+def capture_context(alternative_token=None, *, scenario):
+    scenario = active_scenario(scenario)
     scenario, movements, occurrences = capture_projection(scenario.pk, materialize=False)
     base = build_from_snapshot(scenario, movements, occurrences)
     alternative = None

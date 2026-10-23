@@ -3,13 +3,13 @@ import ProjectionChart from './ProjectionChart.jsx'
 import { date, money, shortDate } from '../format.js'
 import { Icon } from './Navigation.jsx'
 
-export default function Dashboard({ data }) {
+export default function Dashboard({ data, user }) {
   const { indicators: v, next_income: income, period } = data
   const interval = `${date(period.start)} a ${date(period.end)}`
   const upcoming = data.chart_days.flatMap((day) => day.events || [])
   return <>
     <section className="balance-hero" aria-labelledby="greeting">
-      <div className="hero-heading"><div><p className="eyebrow">MEU PLANEJAMENTO</p><h1 id="greeting">Olá, Samuel</h1></div><span className="fluxo-badge">FLUXO</span></div>
+      <div className="hero-heading"><div><p className="eyebrow">MEU PLANEJAMENTO</p><h1 id="greeting">Olá, {user?.name.split(' ')[0] || 'cliente'}</h1></div><span className="fluxo-badge">FLUXO</span></div>
       <div className="balance-block"><p>Saldo atual</p><strong className={Number(v.current_balance) < 0 ? 'negative' : ''}>{money(v.current_balance)}</strong><span>Entradas e saídas realizadas até {date(data.reference_date)}</span></div>
     </section>
     <nav className="quick-actions" aria-label="Atalhos do planejamento">{[['expenses', 'Despesas'], ['incomes', 'Renda prevista'], ['recurrences', 'Recorrências'], ['simulations', 'Simular']].map(([key, label]) => <a key={key} href={`#${key}`}><Icon name={key} /><span>{label}</span></a>)}</nav>

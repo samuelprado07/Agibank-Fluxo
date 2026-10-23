@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 from uuid import uuid4
@@ -11,9 +12,9 @@ from django.test import Client, TestCase, TransactionTestCase
 from finance.models import Movement, Occurrence, Scenario
 
 
-class IncomeTests(TestCase):
+class IncomeTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Renda", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Renda", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="1000.00")
         self.payload = {"description": "Benefício", "amount": "2200.00", "expected_date": "2026-10-25", "frequency": "single"}
 
     def create(self, **changes):
@@ -57,7 +58,7 @@ class IncomeTests(TestCase):
         self.assertEqual(Movement.objects.count(), 0)
 
     def test_csrf_and_no_scenario(self):
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         self.assertEqual(client.post("/api/incomes/", data=json.dumps(self.payload), content_type="application/json").status_code, 403)
         self.scenario.delete()
         self.assertEqual(self.client.get("/api/incomes/").status_code, 404)
@@ -196,9 +197,9 @@ class IncomeTests(TestCase):
                 self.assertEqual(list(Occurrence.objects.filter(income_series_id=series_id).values_list("due_date", "amount")), before)
 
 
-class ConcurrentReceiptTests(TransactionTestCase):
+class ConcurrentReceiptTests(AuthenticatedTransactionTestCase):
     def test_simultaneous_receipts_with_same_or_distinct_keys(self):
-        scenario = Scenario.objects.create(name="Concorrência", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="0.00")
+        scenario = Scenario.objects.create(owner=self.user, name="Concorrência", opening_date=date(2026, 10, 1), reference_date=date(2026, 10, 22), opening_balance="0.00")
         for same_key in (True, False):
             income = Occurrence.objects.create(scenario=scenario, description="Renda", amount="100.00", due_date=date(2026, 10, 22), direction="income")
             barrier = Barrier(2)
@@ -207,7 +208,7 @@ class ConcurrentReceiptTests(TransactionTestCase):
                 close_old_connections()
                 try:
                     barrier.wait(timeout=10)
-                    return Client().post(f"/api/incomes/{income.pk}/receipt/", data=json.dumps({"key": key if same_key else str(uuid4()), "version": 0, "amount": "100.00", "date": "2026-10-22"}), content_type="application/json").status_code
+                    return self.auth_client().post(f"/api/incomes/{income.pk}/receipt/", data=json.dumps({"key": key if same_key else str(uuid4()), "version": 0, "amount": "100.00", "date": "2026-10-22"}), content_type="application/json").status_code
                 finally:
                     close_old_connections()
             with ThreadPoolExecutor(max_workers=2) as pool:

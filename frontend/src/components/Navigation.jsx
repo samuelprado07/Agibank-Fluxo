@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { pages } from '../pages.js'
 
 export function Icon({ name }) {
@@ -12,12 +13,21 @@ export function Icon({ name }) {
   return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
-export default function Navigation({ page }) {
+export default function Navigation({ page, user, onLogout }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function signOut() {
+    if (busy) return
+    setBusy(true); setError('')
+    try { await onLogout() } catch { setError('Não foi possível sair. Tente novamente.') }
+    finally { setBusy(false) }
+  }
   return <aside className="sidebar">
     <a className="brand" href="#overview" aria-label="Agibank Fluxo, início"><span className="brand-symbol">a</span><span>agibank<small>FLUXO</small></span></a>
     <p className="nav-caption">MEU PLANEJAMENTO</p>
     <nav aria-label="Menu principal">{Object.entries(pages).map(([key, label]) => <a href={`#${key}`} key={key} className={`nav-link ${page === key ? 'active' : ''}`} aria-current={page === key ? 'page' : undefined}><Icon name={key} /><span>{key === 'overview' ? 'Início' : key === 'incomes' ? 'Renda' : label}</span>{page === key && <i aria-hidden="true" />}</a>)}</nav>
     <div className="sidebar-note"><span className="note-symbol" aria-hidden="true">↗</span><strong>Um passo à frente.</strong><p>Mais clareza para cuidar das suas próximas decisões.</p></div>
-    <div className="sidebar-profile"><span className="avatar">S</span><div><strong>Samuel</strong><small>Meu planejamento financeiro</small></div></div>
+    <div className="sidebar-profile"><span className="avatar">{user?.name.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name}</strong><small>Meu planejamento financeiro</small></div></div>
+    <div className="signout-area"><button className="text-button" type="button" disabled={busy} onClick={signOut}>{busy ? 'Saindo…' : 'Sair da conta'}</button>{error && <p className="field-error" role="alert">{error}</p>}</div>
   </aside>
 }

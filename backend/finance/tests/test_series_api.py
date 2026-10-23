@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 import json
 from datetime import date
 
@@ -6,9 +7,9 @@ from django.test import Client, TestCase
 from finance.models import ExpenseSeries, Movement, Occurrence, Scenario
 
 
-class SeriesApiTests(TestCase):
+class SeriesApiTests(AuthenticatedTestCase):
     def setUp(self):
-        self.scenario = Scenario.objects.create(name="Conta", opening_date=date(2026, 1, 1), reference_date=date(2026, 1, 15), opening_balance="1500.00")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Conta", opening_date=date(2026, 1, 1), reference_date=date(2026, 1, 15), opening_balance="1500.00")
         payload = {"description": "Aluguel", "amount": "500.00", "category": "Moradia", "due_date": "2026-01-31", "essential": True, "recurring": True}
         response = self.send("post", "/api/expenses/", payload)
         self.assertEqual(response.status_code, 201)
@@ -93,7 +94,7 @@ class SeriesApiTests(TestCase):
                 self.assertEqual(self.send("patch", self.url, {"end_date": value}).status_code, 400)
 
     def test_series_writes_require_csrf_and_use_only_active_scenario(self):
-        client = Client(enforce_csrf_checks=True)
+        client = self.auth_client(enforce_csrf_checks=True)
         self.assertEqual(client.patch(self.url, data='{}', content_type="application/json").status_code, 403)
         self.assertEqual(client.post(self.url + "cancel/", data='{}', content_type="application/json").status_code, 403)
         other = Scenario.objects.create(name="Outra conta", opening_date=date(2026, 1, 1), reference_date=date(2026, 1, 15), opening_balance="0.00")

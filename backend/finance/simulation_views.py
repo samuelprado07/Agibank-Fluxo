@@ -16,11 +16,11 @@ def simulation(request, action):
         return JsonResponse({"message": "Método não permitido."}, status=405)
     try:
         if action == "context":
-            return JsonResponse(context())
+            return JsonResponse(context(scenario=request.scenario))
         payload, error = read_payload(request)
         if error is not None:
             return error
-        return JsonResponse((preview if action == "preview" else apply_preview)(payload))
+        return JsonResponse((preview if action == "preview" else apply_preview)(payload, scenario=request.scenario))
     except SimulationError as error:
         return JsonResponse({"message": str(error), "errors": error.errors}, status=error.status)
     except ExpenseConflict as error:

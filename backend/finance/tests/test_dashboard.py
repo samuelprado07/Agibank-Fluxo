@@ -1,3 +1,4 @@
+from .auth_support import AuthenticatedTestCase, AuthenticatedTransactionTestCase
 from datetime import date, timedelta
 from decimal import Decimal
 from io import StringIO
@@ -8,10 +9,10 @@ from django.test import TestCase
 from finance.models import Movement, Occurrence, Scenario
 
 
-class DashboardTests(TestCase):
+class DashboardTests(AuthenticatedTestCase):
     def setUp(self):
         self.today = date(2026, 10, 22)
-        self.scenario = Scenario.objects.create(name="Teste", opening_date=self.today - timedelta(days=2), reference_date=self.today, opening_balance="1000.10")
+        self.scenario = Scenario.objects.create(owner=self.user, name="Teste", opening_date=self.today - timedelta(days=2), reference_date=self.today, opening_balance="1000.10")
 
     def event(self, amount, offset, direction="expense", **kwargs):
         return Occurrence.objects.create(scenario=self.scenario, description="Conta", amount=amount, due_date=self.today + timedelta(days=offset), direction=direction, essential=direction == "expense", **kwargs)

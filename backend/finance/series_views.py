@@ -12,7 +12,7 @@ from .services.series import serialize_series, stop_series, update_series, valid
 @ensure_csrf_cookie
 @require_safe
 def series_collection(request):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     ensure_occurrences(scenario, scenario.reference_date + timedelta(days=59))
@@ -21,7 +21,7 @@ def series_collection(request):
 
 @require_http_methods(["GET", "HEAD", "PATCH", "POST"])
 def series_detail(request, series_id, cancel=False):
-    scenario = _active_scenario()
+    scenario = _active_scenario(request)
     if scenario is None:
         return _missing_scenario()
     series = scenario.expense_series.filter(pk=series_id).first()

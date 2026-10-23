@@ -15,7 +15,7 @@ def payment(request, expense_id, undo=False):
         return error
     action = "undo" if undo else "correct" if request.method == "PATCH" else "confirm"
     try:
-        return JsonResponse(change_payment(expense_id, action, payload))
+        return JsonResponse(change_payment(expense_id, action, payload, scenario=request.scenario))
     except PaymentError as error:
         return JsonResponse({"message": str(error), "errors": error.errors}, status=error.status)
     except OperationalError as error:
