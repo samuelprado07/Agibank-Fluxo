@@ -9,24 +9,40 @@ import SimulationPanel from './components/SimulationPanel.jsx'
 import AssistantPanel from './components/AssistantPanel.jsx'
 import { pages } from './pages.js'
 import RegisterScreen from './components/RegisterScreen.jsx'
+import LoginScreen from './components/LoginScreen.jsx'
 
 const currentPage = () => Object.hasOwn(pages, window.location.hash.slice(1)) ? window.location.hash.slice(1) : 'overview'
 
 export default function App() {
   const [auth, setAuth] = useState({ status: 'loading', user: null })
+  const [authPage, setAuthPage] = useState(() => window.location.hash === '#register' ? 'register' : 'login')
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     getSession(AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]))
       .then((data) => { if (!controller.signal.aborted) setAuth({ status: 'ready', user: data.user }) })
       .catch(() => { if (!controller.signal.aborted) setAuth({ status: 'error', user: null }) })
-    const expired = () => setAuth({ status: 'ready', user: null })
+    const expired = () => { setAuth({ status: 'ready', user: null }); setAuthPage('login'); window.location.hash = 'login' }
     window.addEventListener('agibank:session-expired', expired)
     return () => { controller.abort(); window.removeEventListener('agibank:session-expired', expired) }
   }, [attempt])
+  useEffect(() => {
+    const changeAuthPage = () => {
+      if (['#login', '#register'].includes(window.location.hash)) {
+        setAuthPage(window.location.hash.slice(1))
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      }
+    }
+    window.addEventListener('hashchange', changeAuthPage)
+    return () => window.removeEventListener('hashchange', changeAuthPage)
+  }, [])
+  function authenticated(user) {
+    window.location.hash = 'overview'
+    setAuth({ status: 'ready', user })
+  }
   if (auth.status !== 'ready') return <main className="auth-loading"><section className="panel"><h1>Agibank Fluxo</h1><p role="status">{auth.status === 'loading' ? 'Preparando seu acesso…' : 'Não foi possível conectar ao serviço.'}</p>{auth.status === 'error' && <button onClick={() => { setAuth({ status: 'loading', user: null }); setAttempt((value) => value + 1) }}>Tentar novamente</button>}</section></main>
-  if (!auth.user) return <RegisterScreen onRegistered={(user) => { window.location.hash = 'overview'; setAuth({ status: 'ready', user }) }} />
-  return <PlanningApp key={auth.user.id} user={auth.user} onLogout={() => setAuth({ status: 'ready', user: null })} />
+  if (!auth.user) return authPage === 'register' ? <RegisterScreen onRegistered={authenticated} /> : <LoginScreen onSignedIn={authenticated} />
+  return <PlanningApp key={auth.user.id} user={auth.user} onLogout={() => { setAuth({ status: 'ready', user: null }); setAuthPage('login'); window.location.hash = 'login' }} />
 }
 
 function PlanningApp({ user, onLogout }) {

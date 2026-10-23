@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import get_user_model, authenticate, login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError, OperationalError
@@ -36,6 +36,14 @@ class RegistrationForm(forms.Form):
             except ValidationError as error:
                 self.add_error('password', error)
         return values
+
+
+class LoginForm(forms.Form):
+    email = forms.EmailField(max_length=150)
+    password = forms.CharField(strip=False, max_length=128)
+
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()
 
 
 def user_data(user):
@@ -87,6 +95,31 @@ def register(request):
             raise
         return JsonResponse({'message': 'O cadastro está temporariamente ocupado. Tente novamente.'}, status=503)
     return JsonResponse({'user': user_data(user)}, status=201)
+
+
+@require_POST
+@never_cache
+def sign_in(request):
+    if request.user.is_authenticated:
+        return JsonResponse({'message': 'Saia da conta atual antes de entrar em outra.'}, status=409)
+    payload, error = read_payload(request)
+    if error is not None:
+        return error
+    if set(payload) - {'email', 'password'} or any(not isinstance(value, str) for value in payload.values()):
+        return JsonResponse({'message': 'Informe apenas e-mail e senha válidos.'}, status=400)
+    form = LoginForm(payload)
+    if not form.is_valid():
+        return JsonResponse({'message': 'Confira os dados de acesso.', 'errors': dict(form.errors)}, status=400)
+    try:
+        user = authenticate(request, username=form.cleaned_data['email'], password=form.cleaned_data['password'])
+        if user is None:
+            return JsonResponse({'message': 'E-mail ou senha inválidos.', 'code': 'invalid_credentials'}, status=401)
+        login(request, user)
+    except OperationalError as error:
+        if not any(word in str(error).lower() for word in ('locked', 'busy')):
+            raise
+        return JsonResponse({'message': 'O acesso está temporariamente ocupado. Tente novamente.'}, status=503)
+    return JsonResponse({'user': user_data(user)})
 
 
 @require_POST

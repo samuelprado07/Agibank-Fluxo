@@ -1,0 +1,3 @@
+export default function AuthLayout({ title, titleId, description, children }) {
+  return <main className="auth-page"><section className="auth-brand-panel"><a href="#login" className="auth-brand" aria-label="Agibank Fluxo">agibank <span>FLUXO</span></a><div><p className="eyebrow">UM PASSO À FRENTE</p><h2>Seu dinheiro.<br />Seu planejamento.</h2><p>Mais clareza para organizar seus compromissos e cuidar das suas próximas decisões.</p></div><span>Previsibilidade para o seu dia a dia.</span></section><section className="auth-content" aria-labelledby={titleId}><div className="auth-card"><p className="eyebrow">BEM-VINDO AO AGIBANK FLUXO</p><h1 id={titleId}>{title}</h1><p className="muted">{description}</p>{children}</div></section></main>
+}
