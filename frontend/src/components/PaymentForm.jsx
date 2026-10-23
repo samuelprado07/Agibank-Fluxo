@@ -56,6 +56,7 @@ export default function PaymentForm({ expense, action, openingDate, referenceDat
     <h3 id="payment-title">{actionTitles[action]}</h3>
     <p><strong>{expense.description}</strong> · valor previsto {money(expense.amount)} · {isIncome ? 'data esperada' : 'vencimento'} {date(expense.due_date)}.</p>
     {expense.payment && <p>{isIncome ? 'Recebimento' : 'Pagamento'} atual: {money(expense.payment.amount)} em {date(expense.payment.date)}.</p>}
+    {!isIncome && expense.is_estimate && <p className="muted">O valor cadastrado é uma estimativa. Registre um pagamento somente se a saída já ocorreu, usando o valor e a data efetivos.</p>}
     <p className="muted">{isIncome
       ? action === 'undo' ? 'A entrada efetiva deixará de compor o saldo. A previsão anterior será restaurada; se atrasada, ficará fora da projeção até confirmação ou atualização da data. O histórico será preservado.' : 'Informe o valor total efetivamente recebido. Mesmo que menor que o previsto, ele encerra esta ocorrência sem diferença pendente. Os próximos meses não serão alterados.'
       : action === 'undo' ? 'A saída efetiva deixará de compor o saldo. A previsão original voltará a ser considerada; se vencida, será tratada como imediata. O histórico será preservado.' : 'Informe o valor total efetivamente pago. Mesmo que diferente do previsto, ele quita toda esta ocorrência. As próximas contas não serão alteradas.'}</p>

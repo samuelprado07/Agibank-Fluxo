@@ -72,13 +72,15 @@ class ExpenseApiTests(TestCase):
         self.assertEqual(self.create_expense().status_code, 404)
         self.assertFalse(Scenario.objects.exists())
 
-    def test_editing_essentiality_refreshes_commitment_without_changing_balance(self):
+    def test_editing_essentiality_preserves_commitment_and_current_balance(self):
         expense = self.create_expense().json()
         Occurrence.objects.create(scenario=self.scenario, description="Renda", direction="income", amount="2000.00", due_date=date(2026, 10, 30))
         response = self.client.patch(f"/api/expenses/{expense['id']}/", data=json.dumps({"essential": False, "amount": "130.45"}), content_type="application/json")
         self.assertEqual(response.status_code, 200)
         dashboard = self.client.get("/api/dashboard/").json()
-        self.assertEqual(dashboard["indicators"]["committed"], "0.00")
+        self.assertEqual(dashboard["indicators"]["committed"], "130.45")
+        self.assertEqual(dashboard["indicators"]["own_remaining"], "869.55")
+        self.assertEqual(dashboard["indicators"]["pending_essential"], "0.00")
         self.assertEqual(dashboard["indicators"]["current_balance"], "1000.00")
         self.assertEqual(dashboard["indicators"]["projected_final"], "2869.55")
 

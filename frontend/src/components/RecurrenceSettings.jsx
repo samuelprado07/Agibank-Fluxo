@@ -5,7 +5,7 @@ import { date, money } from '../format.js'
 const states = { active: 'Ativa', stopped: 'Encerrada', scheduled_stop: 'Encerramento agendado', ended: 'Vigência concluída' }
 
 function SettingsForm({ series, reference, stopping, onSaved, onClose }) {
-  const [values, setValues] = useState({ description: series.description, amount: series.amount.replace('.', ','), category: series.category, essential: series.essential, due_day: series.due_day, end_date: series.end_date || '', effective_month: (reference > series.start_date ? reference : series.start_date).slice(0, 7), from_date: reference, cancel_pending: false })
+  const [values, setValues] = useState({ description: series.description, amount: series.amount.replace('.', ','), category: series.category, essential: series.essential, is_estimate: series.is_estimate, due_day: series.due_day, end_date: series.end_date || '', effective_month: (reference > series.start_date ? reference : series.start_date).slice(0, 7), from_date: reference, cancel_pending: false })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [fields, setFields] = useState({})
@@ -21,7 +21,7 @@ function SettingsForm({ series, reference, stopping, onSaved, onClose }) {
       if (stopping) {
         await stopRecurrence(series.id, { from_date:values.from_date, cancel_pending:values.cancel_pending })
       } else {
-        await updateRecurrence(series.id, { description:values.description.trim(), amount:values.amount.trim().replace(',', '.'), category:values.category.trim(), essential:values.essential, due_day:Number(values.due_day), end_date:values.end_date || null, effective_from:`${values.effective_month}-01` })
+        await updateRecurrence(series.id, { description:values.description.trim(), amount:values.amount.trim().replace(',', '.'), category:values.category.trim(), essential:values.essential, is_estimate:values.is_estimate, due_day:Number(values.due_day), end_date:values.end_date || null, effective_from:`${values.effective_month}-01` })
       }
       onSaved(stopping ? 'Recorrência encerrada conforme a data e o alcance escolhidos.' : 'Configuração mensal atualizada. Pagamentos e exceções preservados.')
     } catch (failure) { setError(failure.message); setFields(failure.fields || {}) }
@@ -46,6 +46,7 @@ function SettingsForm({ series, reference, stopping, onSaved, onClose }) {
           <label htmlFor="series-end_date">Último vencimento permitido (opcional)<input {...props('end_date')} onInput={change} type="date" min={series.start_date} />{fieldError('end_date')}</label>
         </div>
         <label className="essential-choice"><input type="checkbox" name="essential" checked={values.essential} onChange={change} />Esta despesa é essencial para mim</label>{fieldError('essential')}
+        <label className="essential-choice"><input type="checkbox" name="is_estimate" checked={values.is_estimate} onChange={change} />Este valor é uma estimativa de gasto</label>{fieldError('is_estimate')}
         <p className="muted">Início preservado: {date(series.start_date)}. Alterações valem para pendentes sem pagamento, incluindo vencidas na competência escolhida ou posterior. Exceções individuais e cancelamentos são mantidos.</p>
         <p className="muted">Alterar o término não apaga ocorrências já geradas. Para retirá-las do planejamento, use o cancelamento. Dias inexistentes usam o último dia do mês.</p>
       </>}
@@ -89,7 +90,7 @@ export default function RecurrenceSettings({ onChanged }) {
       {result.status==='error' && <div role="alert"><p>{result.message}</p><button onClick={()=>{setResult({status:'loading'});setAttempt((value)=>value+1)}}>Tentar novamente</button></div>}
       {result.status==='ready' && (!result.recurrences.length ? <div className="empty-state"><span aria-hidden="true">↻</span><h3>Nenhuma recorrência cadastrada.</h3><p>Ao cadastrar uma despesa, marque a opção de repetição mensal.</p><a href="#expenses">Ir para despesas →</a></div> : <div className="recurrences-list">{result.recurrences.map((series)=><article className="recurrence-card" key={series.id}>
         <div className="recurrence-mark" aria-hidden="true">↻</div><div className="recurrence-main"><div className="recurrence-title"><h3>{series.description}</h3><span className={`expense-status ${series.generation_status==='active'?'settled':'cancelled'}`}>{states[series.generation_status]}</span></div><p>{series.category || 'Sem categoria'} · {series.essential?'Essencial':'Não essencial'}</p><div className="recurrence-meta"><span>Dia <strong>{series.due_day}</strong> de cada mês</span><span>Desde {date(series.start_date)}</span><span>{series.end_date?`Até ${date(series.end_date)}`:'Sem término definido'}</span></div>{series.cancelled_from && <p className="muted">Novos vencimentos interrompidos a partir de {date(series.cancelled_from)}.</p>}<p className="scheduled-change">{series.next_change && <>A partir de {date(series.next_change.date)}: {money(series.next_change.amount)}, vencimento no dia {series.next_change.due_day}.</>}</p><p className="muted">{series.pending_count} ocorrência(s) pendente(s){series.next_due_date?` · próximo vencimento ${date(series.next_due_date)}`:''}</p></div>
-        <div className="recurrence-value"><small>Valor padrão</small><strong>{money(series.amount)}</strong><div className="row-actions"><button className="secondary-button" disabled={opening} onClick={()=>open(series,false)} aria-label={`Configurar ${series.description}`}>Configurar</button><button className="text-button" disabled={opening} onClick={()=>open(series,true)} aria-label={`Encerrar ${series.description}`}>Encerrar</button></div></div>
+        <div className="recurrence-value">{series.is_estimate && <span className="estimate-label">Estimativa de gasto</span>}<small>Valor padrão</small><strong>{money(series.amount)}</strong><div className="row-actions"><button className="secondary-button" disabled={opening} onClick={()=>open(series,false)} aria-label={`Configurar ${series.description}`}>Configurar</button><button className="text-button" disabled={opening} onClick={()=>open(series,true)} aria-label={`Encerrar ${series.description}`}>Encerrar</button></div></div>
       </article>)}</div>)}
     </section>
   </>

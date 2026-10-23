@@ -21,7 +21,7 @@ export default function Dashboard({ data }) {
           <IndicatorCard label="Próximo recebimento" value={income ? money(income.amount) : 'Não informado'} period={income ? `Previsto para ${date(income.date)}` : `Busca de ${interval}`} note={income ? `${income.description} · Ainda estimado` : 'Sem entrada prevista válida no horizonte.'} />
           {data.next_incomes?.slice(1).map((item, index) => <IndicatorCard key={`${item.description}-${index}`} label="Outro recebimento na mesma data" value={money(item.amount)} period={`Previsto para ${date(item.date)}`} note={`${item.description} · Ainda estimado`} />)}
           <IndicatorCard label="Essenciais pendentes" value={money(v.pending_essential)} period={`${interval}, incluindo vencidas`} note="Compromissos essenciais ainda não pagos." />
-          <IndicatorCard label="Valor comprometido" value={money(v.committed)} period={committedPeriod} note="Planejamento: não bloqueia dinheiro." />
+          <IndicatorCard label="Valor comprometido" value={money(v.committed)} period={committedPeriod} note="Todas as despesas pendentes e estimativas, essenciais ou não. Não bloqueia dinheiro." />
           <IndicatorCard label="Saldo próprio restante" value={money(v.own_remaining)} period={income ? `Após compromissos até ${date(income.date)}` : committedPeriod} note="Sem incluir rendas futuras ou limite de crédito." negative={v.own_remaining !== null && Number(v.own_remaining) < 0} />
           <IndicatorCard label="Saldo projetado final" value={money(v.projected_final)} period={`Ao final de ${date(period.end)}`} note="Considera entradas previstas e saídas cadastradas." negative={Number(v.projected_final) < 0} />
         </div>

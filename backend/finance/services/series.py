@@ -15,6 +15,7 @@ class SeriesForm(forms.Form):
     amount = forms.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     category = forms.CharField(max_length=60, required=False)
     essential = forms.BooleanField(required=False)
+    is_estimate = forms.BooleanField(required=False)
     due_day = forms.IntegerField(min_value=1, max_value=31)
     end_date = forms.DateField(required=False)
 
@@ -37,7 +38,7 @@ def serialize_series(series, reference):
         if future != values:
             next_change = {"date": future_month, "amount": f'{Decimal(future["amount"]):.2f}', "due_day": future["day"]}
             break
-    return {"id": series.pk, "description": values["description"], "amount": f'{Decimal(values["amount"]):.2f}', "category": values["category"], "essential": values["essential"], "due_day": values["day"], "start_date": series.start_date, "end_date": series.end_date, "cancelled_from": series.cancelled_from, "generation_status": state, "pending_count": series.occurrences.filter(status="pending").count(), "next_due_date": next_occurrence.due_date if next_occurrence else None, "next_change": next_change}
+    return {"id": series.pk, "description": values["description"], "amount": f'{Decimal(values["amount"]):.2f}', "category": values["category"], "essential": values["essential"], "is_estimate": values["is_estimate"], "due_day": values["day"], "start_date": series.start_date, "end_date": series.end_date, "cancelled_from": series.cancelled_from, "generation_status": state, "pending_count": series.occurrences.filter(status="pending").count(), "next_due_date": next_occurrence.due_date if next_occurrence else None, "next_change": next_change}
 
 
 def validate_series(series, payload, reference):
@@ -50,6 +51,8 @@ def validate_series(series, payload, reference):
             errors[key] = ["Informe um texto; valores monetários usam texto decimal."]
     if "essential" in payload and type(payload["essential"]) is not bool:
         errors["essential"] = ["Informe verdadeiro ou falso."]
+    if "is_estimate" in payload and type(payload["is_estimate"]) is not bool:
+        errors["is_estimate"] = ["Informe verdadeiro ou falso."]
     if "due_day" in payload and type(payload["due_day"]) is not int:
         errors["due_day"] = ["Informe um dia inteiro entre 1 e 31."]
     if "end_date" in payload and payload["end_date"] is not None and not isinstance(payload["end_date"], str):
@@ -78,7 +81,7 @@ def update_series(series, form, effective):
     series = ExpenseSeries.objects.select_for_update().get(pk=series.pk)
     before = {**series_snapshot(series), "values": effective_values(series, effective), "effective_from": effective.isoformat()}
     data = form.cleaned_data
-    values = {key: str(data[key]) if key == "amount" else data[key] for key in ("description", "amount", "category", "essential")}
+    values = {key: str(data[key]) if key == "amount" else data[key] for key in ("description", "amount", "category", "essential", "is_estimate")}
     values["day"] = data["due_day"]
     if values != effective_values(series, effective):
         ExpenseSeriesRevision.objects.create(series=series, effective_from=effective, values=values)
@@ -86,7 +89,7 @@ def update_series(series, form, effective):
             if is_paid_or_linked(occurrence):
                 continue
             old = snapshot(occurrence)
-            for key in ("description", "amount", "category", "essential"):
+            for key in ("description", "amount", "category", "essential", "is_estimate"):
                 setattr(occurrence, key, data[key])
             occurrence.due_date = date(occurrence.competence.year, occurrence.competence.month, min(data["due_day"], monthrange(occurrence.competence.year, occurrence.competence.month)[1]))
             occurrence.full_clean()
