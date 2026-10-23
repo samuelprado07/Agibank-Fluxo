@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cancelIncome, getIncome, getIncomes, stopIncomeSeries } from '../services/api.js'
 import { date, money } from '../format.js'
 import IncomeForm from './IncomeForm.jsx'
@@ -21,6 +21,11 @@ export default function IncomePanel({ onChanged }) {
   const [filter, setFilter] = useState('all')
   const [cutoff, setCutoff] = useState('')
   const [cancelPending, setCancelPending] = useState(false)
+  const panelRef = useRef(null)
+  useEffect(() => {
+    const selector = receipt ? '.payment-form' : form || action ? '.expense-form' : detail ? '.expense-detail' : null
+    if (selector) panelRef.current?.querySelector(selector)?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [receipt, form, action, detail])
   useEffect(() => {
     const controller = new AbortController()
     getIncomes(AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]))
@@ -50,7 +55,7 @@ export default function IncomePanel({ onChanged }) {
   function openAction(income, type) { clear(); setAction({ income, type }); setCutoff(result.reference_date < income.series_start ? income.series_start : result.reference_date); setCancelPending(false) }
   const rows = (result.incomes || []).filter((income) => filter === 'all' || (filter === 'overdue' ? income.overdue : income.status === filter))
   const editing = form || receipt || action
-  return <section className="panel expenses-panel" aria-labelledby="incomes-title">
+  return <section ref={panelRef} className="panel expenses-panel" aria-labelledby="incomes-title">
     <div className="panel-heading"><div><p className="eyebrow">SUAS ENTRADAS</p><h2 id="incomes-title">Renda prevista</h2></div><button type="button" disabled={!!editing || busy} onClick={() => { clear(); setForm({}) }}>Nova renda</button></div>
     <p className="muted">Confira suas próximas entradas e confirme somente o que já recebeu. Valores previstos não compõem seu saldo atual.</p>
     {notice && <p className="success-notice" role="status">{notice}</p>}
@@ -73,13 +78,18 @@ export default function IncomePanel({ onChanged }) {
     {result.status === 'error' && <div role="alert"><p>{result.message}</p><button type="button" onClick={() => saved('Consultando rendas novamente…')}>Tentar novamente</button></div>}
     {result.status === 'ready' && !editing && <>
       <div className="expenses-filter"><label htmlFor="income-filter">Situação</label><select id="income-filter" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Todas</option><option value="overdue">Atrasados</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><span>Referência: {date(result.reference_date)}</span></div>
-      {!rows.length ? <p>Nenhuma renda encontrada para esta seleção.</p> : <div className="table-scroll"><table className="expenses-table"><caption>Recebimentos cadastrados, incluindo atrasados e ocorrências fora do horizonte do gráfico</caption><thead><tr>{['Descrição', 'Valor previsto', 'Data esperada', 'Frequência', 'Situação', 'Recebido', 'Ações'].map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map((income) => <tr key={income.id}><th scope="row">{income.description}{income.is_exception && <span className="recurrence-label">Exceção individual</span>}</th><td>{money(income.amount)}</td><td>{date(income.expected_date)}{income.overdue && <span className="overdue-label">Atrasado · fora da projeção</span>}</td><td>{income.frequency === 'monthly' ? `Mensal · ${date(income.competence).slice(3)}` : 'Única'}</td><td><span className={`expense-status ${income.status}`}>{statuses[income.status]}</span></td><td>{income.receipt ? <>{money(income.receipt.amount)}<span className="recurrence-label">{date(income.receipt.date)}</span></> : '—'}</td><td><div className="row-actions">
+      {!rows.length ? <p>Nenhuma renda encontrada para esta seleção.</p> : <div className="expense-list" aria-label="Recebimentos cadastrados">{rows.map((income) => <article className="expense-list-card" key={income.id} aria-labelledby={`income-title-${income.id}`}>
+        <div className="expense-card-content"><div className="expense-card-heading"><h3 id={`income-title-${income.id}`}>{income.description}</h3><span className={`expense-status ${income.status}`}>{statuses[income.status]}</span></div>
+        <span className="recurrence-label">{income.frequency === 'monthly' ? `Mensal · ${date(income.competence).slice(3)}` : 'Única'}{income.is_exception && ' · exceção individual'}</span>
+        <dl className="expense-card-meta"><div><dt>Valor previsto</dt><dd className="expense-card-amount">{money(income.amount)}</dd></div><div><dt>Data esperada</dt><dd>{date(income.expected_date)}{income.overdue && <span className="overdue-label">Atrasado · fora da projeção</span>}</dd></div><div><dt>Valor recebido</dt><dd>{income.receipt ? money(income.receipt.amount) : '—'}</dd></div><div><dt>Data do recebimento</dt><dd>{income.receipt ? date(income.receipt.date) : '—'}</dd></div></dl></div>
+        <div className="expense-card-actions" role="group" aria-label={`Ações de ${income.description}`}>
+
         <button type="button" className="secondary-button" disabled={busy} onClick={() => details(income)} aria-label={`Ver detalhes de ${income.description}`}>Detalhes</button>
         {income.can_edit && <><button type="button" className="secondary-button" onClick={() => { clear(); setForm(income) }} aria-label={`Ajustar previsão de ${income.description}`}>Ajustar previsão</button><button type="button" className="secondary-button" onClick={() => openAction(income, 'cancel')}>Cancelar previsão</button></>}
         {income.can_receive && <button type="button" className="secondary-button" onClick={() => { clear(); setReceipt({ income, type: 'confirm' }) }} aria-label={`Confirmar recebimento de ${income.description}`}>Confirmar recebimento</button>}
         {income.can_correct_receipt && <><button type="button" className="secondary-button" onClick={() => { clear(); setReceipt({ income, type: 'correct' }) }}>Corrigir recebimento</button><button type="button" className="secondary-button" onClick={() => { clear(); setReceipt({ income, type: 'undo' }) }}>Desfazer recebimento</button></>}
         {income.series_id && !income.series_cancelled_from && <button type="button" className="secondary-button" onClick={() => openAction(income, 'stop')}>Encerrar renda mensal</button>}
-      </div></td></tr>)}</tbody></table></div>}
+      </div></article>)}</div>}
     </>}
   </section>
 }

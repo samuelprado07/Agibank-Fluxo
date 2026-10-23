@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cancelExpense, deleteExpense, getExpense, getExpenses } from '../services/api.js'
 import { date, money } from '../format.js'
 import ExpenseForm from './ExpenseForm.jsx'
@@ -19,6 +19,12 @@ export default function ExpensesPanel({ onChanged }) {
   const [actionError, setActionError] = useState('')
   const [detail, setDetail] = useState(null)
   const [payment, setPayment] = useState(null)
+  const panelRef = useRef(null)
+
+  useEffect(() => {
+    const selector = payment ? '.payment-form' : showForm ? '.expense-form' : action ? '.expense-confirm' : detail ? '.expense-detail' : null
+    if (selector) panelRef.current?.querySelector(selector)?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [payment, showForm, action, detail])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -72,7 +78,7 @@ export default function ExpensesPanel({ onChanged }) {
     setNotice('')
     setActionError('')
   }
-  return <section className="panel expenses-panel" aria-labelledby="expenses-title">
+  return <section ref={panelRef} className="panel expenses-panel" aria-labelledby="expenses-title">
     <div className="panel-heading"><div><p className="eyebrow">SEUS COMPROMISSOS</p><h2 id="expenses-title">Despesas e estimativas</h2></div><button type="button" disabled={!!payment} onClick={() => { setEditing(null); setShowForm(true); setNotice(''); setAction(null) }}>Nova despesa</button></div>
     <p className="muted">Acompanhe despesas e estimativas em datas definidas. Todas as pendências até a próxima renda entram no valor comprometido, sejam essenciais ou não. Gastos ausentes da simulação podem alterar o resultado.</p>
     {notice && <p className="success-notice" role="status">{notice}</p>}
@@ -100,13 +106,18 @@ export default function ExpensesPanel({ onChanged }) {
     {result.status === 'error' && <div role="alert"><p>{result.message}</p><button type="button" onClick={() => { setResult({ status: 'loading' }); setAttempt((value) => value + 1) }}>Tentar novamente</button></div>}
     {result.status === 'ready' && !payment && <>
       <div className="expenses-filter"><label htmlFor="expense-filter">Situação</label><select id="expense-filter" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Todas</option>{Object.entries(statuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><span className="muted">Referência: {date(result.reference_date)}</span></div>
-      {!expenses.length ? <p>Nenhuma despesa encontrada para esta seleção.</p> : <div className="table-scroll"><table className="expenses-table"><caption>Despesas e estimativas cadastradas, incluindo vencidas e lançamentos fora do horizonte do gráfico</caption><thead><tr>{['Descrição', 'Valor previsto', 'Categoria', 'Vencimento / data prevista', 'Essencial', 'Situação', 'Ações'].map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead><tbody>{expenses.map((expense) => <tr key={expense.id}><th scope="row">{expense.description}<span className="recurrence-label">{expense.recurring ? `Mensal${expense.is_exception ? ' · exceção' : ''}` : 'Avulsa'}</span>{expense.is_estimate && <span className="estimate-label">{expense.status === 'settled' ? 'Originalmente estimado' : 'Estimativa de gasto'}</span>}</th><td>{money(expense.amount)}</td><td>{expense.category || 'Sem categoria'}</td><td>{date(expense.due_date)}{expense.status === 'pending' && expense.due_date < result.reference_date && <span className="overdue-label">Vencida</span>}</td><td>{expense.essential ? 'Sim' : 'Não'}</td><td><span className={`expense-status ${expense.status}`}>{statuses[expense.status]}</span></td><td><div className="row-actions">
+      {!expenses.length ? <p>Nenhuma despesa encontrada para esta seleção.</p> : <div className="expense-list" aria-label="Despesas e estimativas cadastradas">{expenses.map((expense) => <article className="expense-list-card" key={expense.id} aria-labelledby={`expense-title-${expense.id}`}>
+        <div className="expense-card-content"><div className="expense-card-heading"><h3 id={`expense-title-${expense.id}`}>{expense.description}</h3><span className={`expense-status ${expense.status}`}>{statuses[expense.status]}</span></div>
+        <span className="recurrence-label">{expense.recurring ? `Mensal${expense.is_exception ? ' · exceção' : ''}` : 'Avulsa'}</span>{expense.is_estimate && <span className="estimate-label">{expense.status === 'settled' ? 'Originalmente estimado' : 'Estimativa de gasto'}</span>}
+        <dl className="expense-card-meta"><div><dt>Valor previsto</dt><dd className="expense-card-amount">{money(expense.amount)}</dd></div><div><dt>{expense.is_estimate ? 'Data prevista' : 'Vencimento'}</dt><dd>{date(expense.due_date)}{expense.status === 'pending' && expense.due_date < result.reference_date && <span className="overdue-label">Vencida</span>}</dd></div><div><dt>Categoria</dt><dd>{expense.category || 'Sem categoria'}</dd></div><div><dt>Essencial</dt><dd>{expense.essential ? 'Sim' : 'Não'}</dd></div></dl></div>
+        <div className="expense-card-actions" role="group" aria-label={`Ações de ${expense.description}`}>
+
         <button type="button" className="secondary-button" disabled={busy} onClick={() => showDetails(expense)} aria-label={`Ver detalhes de ${expense.description}`}>Detalhes</button>
         {expense.can_pay && <button type="button" className="secondary-button" onClick={() => startPayment(expense, 'confirm')} aria-label={`Registrar pagamento de ${expense.description}`}>Registrar pagamento</button>}
         {expense.can_correct_payment && <><button type="button" className="secondary-button" onClick={() => startPayment(expense, 'correct')}>Corrigir pagamento</button><button type="button" className="secondary-button" onClick={() => startPayment(expense, 'undo')}>Desfazer pagamento</button></>}
         {expense.can_edit && <><button type="button" className="secondary-button" onClick={() => { setEditing(expense); setShowForm(true); setAction(null); setNotice('') }} aria-label={`Editar ${expense.description}`}>Editar</button><button type="button" className="secondary-button" onClick={() => { setAction({ type: 'cancel', expense }); setScope('this'); setShowForm(false); setActionError('') }} aria-label={`Cancelar ${expense.description}`}>Cancelar</button></>}
         {expense.can_delete && <button type="button" className="secondary-button" onClick={() => { setAction({ type: 'delete', expense }); setShowForm(false); setActionError('') }} aria-label={`Excluir ${expense.description}`}>Excluir</button>}
-      </div></td></tr>)}</tbody></table></div>}
+      </div></article>)}</div>}
     </>}
   </section>
 }
