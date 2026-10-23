@@ -31,11 +31,16 @@ class Occurrence(models.Model):
     essential = models.BooleanField(default=False)
     category = models.CharField(max_length=60, blank=True)
     series = models.ForeignKey("ExpenseSeries", null=True, blank=True, on_delete=models.PROTECT, related_name="occurrences")
+    income_series = models.ForeignKey("IncomeSeries", null=True, blank=True, on_delete=models.PROTECT, related_name="occurrences")
     competence = models.DateField(null=True, blank=True)
     is_exception = models.BooleanField(default=False)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=("series", "competence"), name="unique_expense_series_month")]
+        constraints = [
+            models.UniqueConstraint(fields=("series", "competence"), name="unique_expense_series_month"),
+            models.UniqueConstraint(fields=("income_series", "competence"), name="unique_income_series_month"),
+            models.CheckConstraint(condition=models.Q(income_series__isnull=True) | (models.Q(direction="income", series__isnull=True, competence__isnull=False)), name="valid_income_series_link"),
+        ]
 
 
 class Movement(models.Model):
@@ -61,6 +66,56 @@ class PaymentHistory(models.Model):
     operation = models.OneToOneField(PaymentOperation, on_delete=models.PROTECT)
     action = models.CharField(max_length=12)
     reason = models.CharField(max_length=500, blank=True)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ReceiptOperation(models.Model):
+    key = models.UUIDField(unique=True)
+    fingerprint = models.CharField(max_length=64)
+    result = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ReceiptHistory(models.Model):
+    movement = models.ForeignKey(Movement, on_delete=models.PROTECT, related_name="receipt_history")
+    operation = models.OneToOneField(ReceiptOperation, on_delete=models.PROTECT)
+    action = models.CharField(max_length=12)
+    reason = models.CharField(max_length=500, blank=True)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class IncomeSeries(models.Model):
+    scenario = models.ForeignKey(Scenario, on_delete=models.CASCADE, related_name="income_series")
+    description = models.CharField(max_length=150)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    due_day = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(31)])
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    cancelled_from = models.DateField(null=True, blank=True)
+
+
+class IncomeSeriesRevision(models.Model):
+    series = models.ForeignKey(IncomeSeries, on_delete=models.PROTECT, related_name="revisions")
+    effective_from = models.DateField()
+    values = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class IncomeSeriesHistory(models.Model):
+    series = models.ForeignKey(IncomeSeries, on_delete=models.PROTECT, related_name="history")
+    action = models.CharField(max_length=20)
+    before = models.JSONField()
+    after = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class IncomeHistory(models.Model):
+    occurrence = models.ForeignKey(Occurrence, on_delete=models.PROTECT, related_name="income_history")
+    action = models.CharField(max_length=20)
     before = models.JSONField()
     after = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)

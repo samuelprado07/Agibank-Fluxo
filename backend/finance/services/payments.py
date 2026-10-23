@@ -7,7 +7,7 @@ from uuid import UUID
 
 from django.db import transaction
 
-from finance.models import Movement, Occurrence, PaymentHistory, PaymentOperation, Scenario
+from finance.models import Movement, Occurrence, PaymentHistory, PaymentOperation, ReceiptHistory, ReceiptOperation, Scenario
 
 
 class PaymentError(Exception):
@@ -53,16 +53,20 @@ def snapshot(movement):
 
 
 @transaction.atomic
-def change_payment(expense_id, action, payload):
+def change_payment(expense_id, action, payload, *, income=False):
+    # Both directions share the same lock, idempotency and audit contract.
+    operation_model = ReceiptOperation if income else PaymentOperation
+    history_model = ReceiptHistory if income else PaymentHistory
+    direction = "income" if income else "expense"
     key = validate(payload, action)
     fingerprint = hashlib.sha256(json.dumps([expense_id, action, payload], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    previous = PaymentOperation.objects.filter(key=key).first()
+    previous = operation_model.objects.filter(key=key).first()
     if previous:
         if previous.fingerprint != fingerprint:
             raise PaymentError("Esta chave já foi utilizada com outros dados.")
         return previous.result
     scenario = Scenario.objects.order_by("pk").first()
-    expense = Occurrence.objects.select_for_update().filter(pk=expense_id, scenario=scenario, direction="expense").first()
+    expense = Occurrence.objects.select_for_update().filter(pk=expense_id, scenario=scenario, direction=direction).first()
     if expense is None:
         raise PaymentError("Despesa não encontrada.", 404)
     movement = Movement.objects.select_for_update().filter(occurrence=expense).first()
@@ -74,7 +78,7 @@ def change_payment(expense_id, action, payload):
             raise PaymentError("Somente uma despesa pendente e sem pagamento ativo pode ser paga.")
     elif expense.status != "settled" or not active:
         raise PaymentError("Não há pagamento ativo consistente para corrigir ou desfazer.")
-    if movement and (movement.scenario_id != scenario.pk or movement.direction != "expense"):
+    if movement and (movement.scenario_id != scenario.pk or movement.direction != direction):
         raise PaymentError("O vínculo do pagamento precisa ser revisado.")
     if action != "undo":
         effective_date = date.fromisoformat(payload["date"])
@@ -86,7 +90,7 @@ def change_payment(expense_id, action, payload):
         expense.status = "pending"
     else:
         if movement is None:
-            movement = Movement(scenario=scenario, occurrence=expense, direction="expense", description=expense.description, version=0)
+            movement = Movement(scenario=scenario, occurrence=expense, direction=direction, description=expense.description, version=0)
         movement.amount = Decimal(payload["amount"]).quantize(Decimal("0.01"))
         movement.date = effective_date
         movement.is_voided = False
@@ -95,7 +99,7 @@ def change_payment(expense_id, action, payload):
     movement.full_clean()
     movement.save()
     expense.save(update_fields=["status"])
-    result = {"occurrence_id": expense.pk, "status": expense.status, "payment": snapshot(movement)}
-    operation = PaymentOperation.objects.create(key=key, fingerprint=fingerprint, result=result)
-    PaymentHistory.objects.create(movement=movement, operation=operation, action=action, reason=payload.get("reason", "").strip(), before=before, after=snapshot(movement))
+    result = {"occurrence_id": expense.pk, "status": expense.status, "receipt" if income else "payment": snapshot(movement)}
+    operation = operation_model.objects.create(key=key, fingerprint=fingerprint, result=result)
+    history_model.objects.create(movement=movement, operation=operation, action=action, reason=payload.get("reason", "").strip(), before=before, after=snapshot(movement))
     return result

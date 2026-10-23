@@ -14,10 +14,12 @@ export default function Dashboard({ data }) {
       <div className="balance-block"><p>Saldo atual</p><strong className={Number(v.current_balance) < 0 ? 'negative' : ''}>{money(v.current_balance)}</strong><span>Entradas e saídas realizadas até {date(data.reference_date)}</span></div>
     </section>
     <ProjectionChart days={data.chart_days} />
+    {data.overdue_incomes?.length > 0 && <section className="panel overdue-incomes" aria-labelledby="overdue-incomes-title"><div className="panel-heading"><h2 id="overdue-incomes-title">Recebimentos atrasados</h2><a href="#incomes" className="text-button">Conferir renda</a></div><p className="muted">Ainda não confirmados em {date(data.reference_date)}. Não compõem o saldo, a projeção nem o próximo recebimento.</p><ul>{data.overdue_incomes.map((item) => <li key={item.id}><strong>{item.description}</strong> · {money(item.amount)} · esperado em {date(item.date)}</li>)}</ul></section>}
     <div className="overview-bottom">
       <section className="summary-section" aria-labelledby="summary-title"><div className="section-heading"><div><p className="eyebrow">CADA COMPROMISSO CONTA</p><h2 id="summary-title">Seu planejamento em detalhes</h2></div><span>{interval}</span></div>
         <div className="indicators-grid">
           <IndicatorCard label="Próximo recebimento" value={income ? money(income.amount) : 'Não informado'} period={income ? `Previsto para ${date(income.date)}` : `Busca de ${interval}`} note={income ? `${income.description} · Ainda estimado` : 'Sem entrada prevista válida no horizonte.'} />
+          {data.next_incomes?.slice(1).map((item, index) => <IndicatorCard key={`${item.description}-${index}`} label="Outro recebimento na mesma data" value={money(item.amount)} period={`Previsto para ${date(item.date)}`} note={`${item.description} · Ainda estimado`} />)}
           <IndicatorCard label="Essenciais pendentes" value={money(v.pending_essential)} period={`${interval}, incluindo vencidas`} note="Compromissos essenciais ainda não pagos." />
           <IndicatorCard label="Valor comprometido" value={money(v.committed)} period={committedPeriod} note="Planejamento: não bloqueia dinheiro." />
           <IndicatorCard label="Saldo próprio restante" value={money(v.own_remaining)} period={income ? `Após compromissos até ${date(income.date)}` : committedPeriod} note="Sem incluir rendas futuras ou limite de crédito." negative={v.own_remaining !== null && Number(v.own_remaining) < 0} />

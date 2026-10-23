@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from .projection import project
 from .recurrences import ensure_occurrences
+from .income_recurrences import ensure_income_occurrences
 
 ZERO = Decimal("0.00")
 
@@ -12,6 +13,7 @@ def build_dashboard(scenario):
     if scenario.opening_date > reference:
         raise ValueError("A data de abertura não pode ser posterior à referência.")
     ensure_occurrences(scenario, reference + timedelta(days=59))
+    ensure_income_occurrences(scenario, reference + timedelta(days=59))
     warnings = []
     movements = list(scenario.movements.select_related("occurrence").filter(is_voided=False))
     occurrences = list(scenario.occurrences.all())
@@ -33,6 +35,7 @@ def build_dashboard(scenario):
             balance += movement.amount if movement.direction == "income" else -movement.amount
 
     pending = []
+    overdue_incomes = []
     for occurrence in occurrences:
         if occurrence.pk in linked:
             if occurrence.status != "settled":
@@ -47,6 +50,7 @@ def build_dashboard(scenario):
             warnings.append(f"Lançamento inválido excluído: {occurrence.description}.")
             continue
         if occurrence.direction == "income" and occurrence.due_date < reference:
+            overdue_incomes.append({"id": occurrence.pk, "description": occurrence.description, "amount": occurrence.amount, "date": occurrence.due_date})
             warnings.append(f"Recebimento atrasado não incluído na projeção: {occurrence.description}.")
             continue
         pending.append(occurrence)
@@ -84,6 +88,8 @@ def build_dashboard(scenario):
         "reference_date": reference,
         "period": {"start": reference, "end": end, "chart_end": reference + timedelta(days=14), "maximum_days": 60},
         "next_income": income_data(next_income) if next_income else None,
+        "next_incomes": [income_data(item) for item in future_income if next_income and item.due_date == next_income.due_date],
+        "overdue_incomes": overdue_incomes,
         "indicators": {
             "current_balance": balance,
             "pending_essential": sum((e["amount"] for e in essentials), ZERO),
