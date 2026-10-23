@@ -11,14 +11,14 @@ def month_of(value):
 
 
 def series_values(series):
-    return {"description": series.description, "amount": str(series.amount), "category": series.category, "essential": series.essential, "day": series.due_day}
+    return {"description": series.description, "amount": str(series.amount), "category": series.category, "essential": series.essential, "is_estimate": series.is_estimate, "day": series.due_day}
 
 
 def effective_values(series, competence):
     values = series_values(series)
     for revision in series.revisions.order_by("pk"):
         if revision.effective_from <= competence:
-            values = revision.values
+            values = {**series_values(series), **revision.values}
     return values
 
 
@@ -37,10 +37,10 @@ def ensure_occurrences(scenario, horizon):
             values = series_values(series)
             for revision in revisions:
                 if revision.effective_from <= month:
-                    values = revision.values
+                    values = {**series_values(series), **revision.values}
             due_date = date(month.year, month.month, min(values["day"], monthrange(month.year, month.month)[1]))
             if month not in existing and month not in excluded and series.start_date <= due_date <= horizon and (series.end_date is None or due_date <= series.end_date) and (series.cancelled_from is None or due_date < series.cancelled_from):
-                pending.append(Occurrence(scenario=scenario, series=series, competence=month, description=values["description"], amount=values["amount"], category=values["category"], essential=values["essential"], due_date=due_date, direction="expense", status="pending"))
+                pending.append(Occurrence(scenario=scenario, series=series, competence=month, description=values["description"], amount=values["amount"], category=values["category"], essential=values["essential"], is_estimate=values["is_estimate"], due_date=due_date, direction="expense", status="pending"))
             if month.month == 12:
                 if month.year == 9999:
                     break

@@ -141,6 +141,7 @@ input[aria-invalid=true], .payment-form textarea[aria-invalid=true] { border-col
 .expenses-table th:first-child { white-space: normal; min-width: 180px; }
 .recurrence-label, .overdue-label { display: block; font-size: .7rem; color: #99a5b3; font-weight: 400; margin-top: 4px; }
 .overdue-label { color: #af6e4d; }
+.estimate-label { display: block; width: fit-content; margin-top: 6px; padding: 3px 7px; border-radius: 5px; background: #edf2fb; color: #466c9f; font-size: .7rem; font-weight: 500; }
 .expense-status { display: inline-block; background: #faf0df; color: #aa833f; padding: 4px 9px; border-radius: 5px; font-size: .66rem; font-weight: 500; white-space: nowrap; }
 .expense-status.settled { background: #edf5ed; color: #6b936e; }
 .expense-status.cancelled { background: #f0f2f5; color: #94a0af; }

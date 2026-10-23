@@ -18,6 +18,8 @@ def validate_expense(payload, instance=None):
             errors[key] = ["Informe um texto. Valores monetários devem ser enviados como texto decimal."]
     if "essential" in payload and type(payload["essential"]) is not bool:
         errors["essential"] = ["Informe verdadeiro ou falso."]
+    if "is_estimate" in payload and type(payload["is_estimate"]) is not bool:
+        errors["is_estimate"] = ["Informe verdadeiro ou falso."]
     if "essential" not in payload and instance is None:
         errors["essential"] = ["Informe se a despesa é essencial."]
     if "recurring" in payload and type(payload["recurring"]) is not bool:
@@ -56,7 +58,7 @@ def validate_expense(payload, instance=None):
 def create_expense(scenario, form, payload=None):
     payload = payload or {}
     if payload.get("recurring"):
-        series = ExpenseSeries.objects.create(scenario=scenario, description=form.cleaned_data["description"], amount=form.cleaned_data["amount"], category=form.cleaned_data["category"], essential=form.cleaned_data["essential"], start_date=form.cleaned_data["due_date"], due_day=form.cleaned_data["due_date"].day, end_date=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None)
+        series = ExpenseSeries.objects.create(scenario=scenario, description=form.cleaned_data["description"], amount=form.cleaned_data["amount"], category=form.cleaned_data["category"], essential=form.cleaned_data["essential"], is_estimate=form.cleaned_data["is_estimate"], start_date=form.cleaned_data["due_date"], due_day=form.cleaned_data["due_date"].day, end_date=date.fromisoformat(payload["end_date"]) if payload.get("end_date") else None)
         ensure_occurrences(scenario, max(series.start_date, scenario.reference_date + timedelta(days=59)))
         return series.occurrences.order_by("competence").first()
     expense = form.save(commit=False)
@@ -69,7 +71,7 @@ def create_expense(scenario, form, payload=None):
 
 
 def snapshot(expense):
-    return {"description": expense.description, "amount": str(expense.amount), "category": expense.category, "due_date": expense.due_date.isoformat(), "essential": expense.essential, "status": expense.status, "is_exception": expense.is_exception}
+    return {"description": expense.description, "amount": str(expense.amount), "category": expense.category, "due_date": expense.due_date.isoformat(), "essential": expense.essential, "is_estimate": expense.is_estimate, "status": expense.status, "is_exception": expense.is_exception}
 
 
 def is_paid_or_linked(expense):
@@ -100,7 +102,7 @@ def edit_expense(expense, form, scope):
     targets = [expense]
     if scope == "following":
         series = ExpenseSeries.objects.select_for_update().get(pk=expense.series_id)
-        revision = {key: str(values[key]) if key == "amount" else values[key] for key in ("description", "amount", "category", "essential")}
+        revision = {key: str(values[key]) if key == "amount" else values[key] for key in ("description", "amount", "category", "essential", "is_estimate")}
         revision["day"] = values.get("due_day", effective_values(series, expense.competence)["day"] if values["due_date"] == expense.due_date else values["due_date"].day)
         ExpenseSeriesRevision.objects.create(series=series, effective_from=expense.competence, values=revision)
         targets = list(series.occurrences.select_for_update().filter(competence__gte=expense.competence, status="pending").order_by("competence"))
@@ -108,7 +110,7 @@ def edit_expense(expense, form, scope):
         if is_paid_or_linked(target) or (scope == "following" and target.is_exception and target.pk != expense.pk):
             continue
         before = snapshot(target)
-        for key in ("description", "amount", "category", "essential"):
+        for key in ("description", "amount", "category", "essential", "is_estimate"):
             setattr(target, key, values[key])
         target.due_date = date(target.competence.year, target.competence.month, min(revision["day"], monthrange(target.competence.year, target.competence.month)[1])) if scope == "following" else values["due_date"]
         if scope == "this" and target.series_id:
@@ -163,6 +165,7 @@ def serialize_expense(expense):
         "category": expense.category,
         "due_date": expense.due_date,
         "essential": expense.essential,
+        "is_estimate": expense.is_estimate,
         "status": expense.status,
         "recurring": bool(expense.series_id),
         "series_id": expense.series_id,

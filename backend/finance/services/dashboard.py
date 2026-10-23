@@ -61,8 +61,7 @@ def build_dashboard(scenario):
     end = max(reference + timedelta(days=14), next_income.due_date) if next_income else limit
     if not next_income:
         warnings.append("Próximo recebimento não informado neste horizonte. Análise limitada a 60 dias, incluindo a referência.")
-    if not scenario.variable_expenses_included:
-        warnings.append("Gastos variáveis não estão integralmente representados; despesas ausentes podem alterar os resultados.")
+    warnings.append("Gastos ausentes da simulação podem alterar os resultados, mesmo quando há estimativas cadastradas.")
 
     events = []
     essentials = []
@@ -72,12 +71,12 @@ def build_dashboard(scenario):
         effective = max(reference, occurrence.due_date)
         if occurrence.direction == "expense" and occurrence.due_date < reference:
             warnings.append(f"Despesa vencida considerada imediata: {occurrence.description} ({occurrence.due_date.isoformat()}).")
-        event = {"id": occurrence.pk, "description": occurrence.description, "amount": occurrence.amount, "date": effective, "due_date": occurrence.due_date, "direction": occurrence.direction, "essential": occurrence.essential}
+        event = {"id": occurrence.pk, "description": occurrence.description, "amount": occurrence.amount, "date": effective, "due_date": occurrence.due_date, "direction": occurrence.direction, "essential": occurrence.essential, "is_estimate": occurrence.is_estimate}
         events.append(event)
         if occurrence.direction == "expense" and occurrence.essential:
             essentials.append(event)
 
-    committed = sum((e["amount"] for e in essentials if e["due_date"] <= next_income.due_date), ZERO) if next_income else None
+    committed = sum((e["amount"] for e in events if e["direction"] == "expense" and e["due_date"] <= next_income.due_date), ZERO) if next_income else None
     days, alerts = project(balance, reference, end, events)
     income_data = lambda o: {"description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated"}
     for alert in alerts:
@@ -107,6 +106,8 @@ def build_dashboard(scenario):
             "Saídas previstas são consideradas antes de entradas previstas no mesmo dia; horários bancários não são simulados.",
             "Recebimentos futuros são estimados. A cobertura dos compromissos depende de sua ocorrência nas datas informadas.",
             "Valor comprometido é planejamento: não bloqueia dinheiro. Limites de crédito não compõem recursos próprios.",
+            "Valor comprometido inclui todas as despesas pendentes até a próxima renda, inclusive nessa data, essenciais ou não e incluindo estimativas.",
+            "Estimativas têm valor e data informados e não representam pagamentos realizados. Cada cadastro é um gasto adicional; ajuste ou cancele lançamentos sobrepostos.",
             "Cada mês tem sua própria ocorrência; dias inexistentes usam o último dia do mês, sem ajuste por feriados ou finais de semana.",
             "Saldo negativo representa necessidade estimada de recursos, sem autorização de pagamento.",
         ],

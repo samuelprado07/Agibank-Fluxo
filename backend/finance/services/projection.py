@@ -44,7 +44,7 @@ def project(balance, reference, end, events):
             minimum = min(minimum, balance)
             observe()
         # Show the day's commitments together, without assigning priority or blame.
-        expenses = [{"id": e["id"], "description": e["description"], "amount": e["amount"], "due_date": e["due_date"]} for e in today if e["direction"] == "expense"]
+        expenses = [{"id": e["id"], "description": e["description"], "amount": e["amount"], "due_date": e["due_date"], "is_estimate": e.get("is_estimate", False)} for e in today if e["direction"] == "expense"]
         for alert in alerts:
             if alert["type"] == "insufficient" and alert["date"] <= date and alert.get("recovery_date", end) >= date:
                 alert["expenses"].extend(expenses)
