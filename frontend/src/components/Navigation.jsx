@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { pages } from '../pages.js'
 
 export function Icon({ name }) {
@@ -9,6 +9,7 @@ export function Icon({ name }) {
     recurrences: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2" /></>,
     simulations: <><path d="M4 6h16M4 18h16M8 3v6M16 15v6M4 12h16M14 9v6" /></>,
     assistant: <><path d="M21 11a8 8 0 0 1-8 8H7l-5 3 2-6a8 8 0 1 1 17-5Z" /><path d="M8 10h8M8 14h5" /></>,
+    profile: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></>,
   }
   return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
@@ -16,6 +17,26 @@ export function Icon({ name }) {
 export default function Navigation({ page, user, onLogout }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profile = useRef(null)
+  const profileButton = useRef(null)
+  useEffect(() => {
+    if (!profileOpen) return
+    function closeOutside(event) {
+      if (!profile.current?.contains(event.target)) setProfileOpen(false)
+    }
+    function escape(event) {
+      if (event.key === 'Escape') { setProfileOpen(false); profileButton.current?.focus() }
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('focusin', closeOutside)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('focusin', closeOutside)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [profileOpen])
   async function signOut() {
     if (busy) return
     setBusy(true); setError('')
@@ -27,7 +48,9 @@ export default function Navigation({ page, user, onLogout }) {
     <p className="nav-caption">MEU PLANEJAMENTO</p>
     <nav aria-label="Menu principal">{Object.entries(pages).map(([key, label]) => <a href={`#${key}`} key={key} className={`nav-link ${page === key ? 'active' : ''}`} aria-current={page === key ? 'page' : undefined}><Icon name={key} /><span>{key === 'overview' ? 'Início' : key === 'incomes' ? 'Renda' : label}</span>{page === key && <i aria-hidden="true" />}</a>)}</nav>
     <div className="sidebar-note"><span className="note-symbol" aria-hidden="true">↗</span><strong>Um passo à frente.</strong><p>Mais clareza para cuidar das suas próximas decisões.</p></div>
-    <div className="sidebar-profile"><span className="avatar">{user?.name.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name}</strong><small>Meu planejamento financeiro</small></div></div>
-    <div className="signout-area"><button className="text-button" type="button" disabled={busy} onClick={signOut}>{busy ? 'Saindo…' : 'Sair da conta'}</button>{error && <p className="field-error" role="alert">{error}</p>}</div>
+    <div className="profile-control" ref={profile}>
+      <button ref={profileButton} className="profile-toggle" type="button" aria-label="Perfil do usuário" aria-expanded={profileOpen} aria-controls="user-profile-panel" onClick={() => setProfileOpen(!profileOpen)}><Icon name="profile" /></button>
+      {profileOpen && <div className="profile-popover" id="user-profile-panel"><strong>{user?.name}</strong><span>Meu planejamento financeiro</span><button className="text-button" type="button" disabled={busy} onClick={signOut}>{busy ? 'Saindo…' : 'Sair da conta'}</button>{error && <p className="field-error" role="alert">{error}</p>}</div>}
+    </div>
   </aside>
 }

@@ -4,7 +4,7 @@ Aplicação de planejamento financeiro preventivo voltada especialmente a aposen
 
 ## Funcionalidades
 
-- Cadastro com nome, e-mail e senha, abertura automática de sessão e planejamento separado por usuário.
+- Cadastro com nome, e-mail e senha, login por e-mail e senha, encerramento de sessão e planejamento separado por usuário.
 
 - Dashboard com saldo atual, próximo recebimento, despesas essenciais e projeção diária inicial de 15 dias. A análise pode se estender até o próximo recebimento, respeitando o limite de 60 dias.
 - Alertas de insuficiência e ausência de margem, incluindo situações em que o saldo fica negativo durante o dia e termina positivo. Os marcadores do gráfico abrem um resumo dos compromissos em risco.
@@ -123,11 +123,11 @@ Abra [http://127.0.0.1:5173](http://127.0.0.1:5173). O Vite encaminha as chamada
 
 Nas próximas execuções, basta iniciar os dois servidores. Após atualizar o código, instale novamente as dependências caso seus arquivos tenham mudado e execute `migrate` quando houver novas migrações. Não é necessário recarregar o cenário inicial para preservar seu uso normal.
 
-## Cadastro e sessão
+## Cadastro, login e sessão
 
-Ao abrir a aplicação sem sessão, preencha nome, e-mail, senha e confirmação para criar sua conta. O cadastro inicia a sessão automaticamente. O nome informado passa a aparecer no dashboard, e a opção **Sair da conta** encerra a sessão.
+Ao abrir a aplicação sem sessão, entre com o e-mail e a senha cadastrados. Se ainda não tiver uma conta, selecione **Criar conta** e preencha nome, e-mail, senha e confirmação. O cadastro inicia a sessão automaticamente. O nome informado aparece no dashboard, e a opção **Sair da conta** encerra a sessão e retorna ao login.
 
-A tela de login por e-mail e senha será adicionada na branch seguinte. Nesta etapa, o acesso começa pelo cadastro; evite sair da sua conta se precisar continuar usando-a antes da entrega do login.
+Você pode voltar a entrar para continuar no mesmo planejamento. O e-mail de acesso não diferencia letras maiúsculas e minúsculas; a senha é conferida exatamente como foi cadastrada. A sessão encerra ao sair da conta ou fechar a sessão do navegador, conforme a configuração do Django. Recuperação de senha e confirmação de e-mail não estão incluídas nesta etapa.
 
 As senhas são protegidas pelo hash do Django. As rotas financeiras exigem sessão, e a migração `0008_scenario_owner` vincula cada planejamento ao proprietário sem apagar os registros existentes. Execute `migrate` antes de iniciar esta versão. O assistente e as simulações também respeitam o proprietário dos dados.
 

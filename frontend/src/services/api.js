@@ -105,3 +105,5 @@ export const sendAssistantMessage = (values, signal) => writeExpense('/api/assis
 export const getSession = (signal) => expenseRequest('/api/auth/me/', { signal })
 export const registerAccount = (values, signal) => writeExpense('/api/auth/register/', 'POST', values, signal, getSession)
 export const logoutAccount = (signal) => writeExpense('/api/auth/logout/', 'POST', {}, signal, getSession)
+
+export const loginAccount = (values, signal) => writeExpense('/api/auth/login/', 'POST', values, signal, getSession)
