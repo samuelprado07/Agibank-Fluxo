@@ -1,1 +1,1 @@
-export const pages = { overview: 'Visão geral', expenses: 'Despesas', incomes: 'Renda prevista', recurrences: 'Recorrências' }
+export const pages = { overview: 'Visão geral', expenses: 'Despesas', incomes: 'Renda prevista', recurrences: 'Recorrências', simulations: 'Simular' }

@@ -1,4 +1,5 @@
 import { date, money } from '../format.js'
+import { useId } from 'react'
 
 function DeficitStatus({ alert, period }) {
   if (alert.ongoing) return <p className="alert-footnote">O déficit permanece até {date(alert.analysis_end || period.end)}, limite desta análise.</p>
@@ -17,8 +18,9 @@ function RelevantIncome({ income }) {
 }
 
 export default function AlertsPanel({ alerts, period, referenceDate, assumptionDetails = {} }) {
-  return <section className="panel alerts-panel" aria-labelledby="alerts-title">
-    <div className="panel-heading"><div><p className="eyebrow">ATENÇÃO ANTECIPADA</p><h2 id="alerts-title">Pontos para acompanhar</h2></div><span className="count-tag">{alerts.length}</span></div>
+  const titleId = useId()
+  return <section className="panel alerts-panel" aria-labelledby={titleId}>
+    <div className="panel-heading"><div><p className="eyebrow">ATENÇÃO ANTECIPADA</p><h2 id={titleId}>Pontos para acompanhar</h2></div><span className="count-tag">{alerts.length}</span></div>
     <p className="muted">Referência: {date(referenceDate || period.start)}. Análise de {date(period.start)} a {date(period.end)}, inclusive. Alertas exibidos somente nesta aplicação.</p>
     {!alerts.length && <p className="empty-alert">Nenhuma insuficiência ou ausência de margem identificada nos dados e no período considerados.</p>}
     {alerts.map((a, i) => <article key={a.id || `${a.type}-${a.date}-${i}`} className={`alert-card ${a.type}`}>
