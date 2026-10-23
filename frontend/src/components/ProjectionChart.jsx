@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { date, money, shortDate } from '../format.js'
+import DailyProjectionDetails from './DailyProjectionDetails.jsx'
 
-export default function ProjectionChart({ days }) {
+export default function ProjectionChart({ days, analysisDays, referenceDate, assumptionDetails }) {
   const [selected, setSelected] = useState(null)
   const values = days.flatMap((day) => [Number(day.closing_balance), Number(day.minimum_balance)])
   const low = Math.min(0, ...values), high = Math.max(100, ...values)
@@ -17,6 +18,7 @@ export default function ProjectionChart({ days }) {
   return <section className="panel chart-panel" aria-labelledby="projection-title">
     <div className="panel-heading"><div><p className="eyebrow">UM OLHAR ADIANTE</p><h2 id="projection-title">Evolução do seu saldo</h2></div><span className="period-tag"><span className="calendar-icon" aria-hidden="true">▦</span> {shortDate(days[0].date)} a {shortDate(days.at(-1).date)} <i /> 15 dias</span></div>
     <div className="chart-description"><p>Projeção diária a partir das entradas, despesas e estimativas cadastradas.</p><span><i /> Saldo previsto</span></div>
+    <p className="projection-reference">Referência: {date(referenceDate || days[0].date)}. A projeção parte do saldo atual, com realizações dessa data já incluídas.</p>
     <p className="chart-selected" role="status">{active ? <>{date(active.date)} · Fechamento <strong>{money(active.closing_balance)}</strong> · Menor saldo {money(active.minimum_balance)}</> : '\u00a0'}</p>
     <div className="chart-scroll" tabIndex="0" aria-label="Gráfico com rolagem horizontal e valores por dia"><svg viewBox={`0 0 ${width} 340`} role="img" aria-labelledby="chart-title chart-description">
       <title id="chart-title">Saldo previsto nos próximos 15 dias</title><desc id="chart-description">Valores de fechamento visíveis em cada ponto. De {date(days[0].date)} a {date(days.at(-1).date)}. Marcadores em losango indicam ausência de margem ou insuficiência. Tabela detalhada abaixo.</desc>
@@ -32,6 +34,6 @@ export default function ProjectionChart({ days }) {
       </g>)}
     </svg></div>
     <div className="chart-footnote"><span>◆ Marcadores indicam insuficiência ou ausência de margem.</span><span>Valores sujeitos às entradas e saídas previstas.</span></div>
-    <details className="daily-details"><summary>Ver movimentações e valores por dia</summary><div className="table-scroll"><table><caption>Projeção dos 15 dias exibidos no gráfico</caption><thead><tr>{['Data', 'Entradas', 'Saídas', 'Menor saldo', 'Fechamento'].map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead><tbody>{days.map((day) => <tr key={day.date}><th scope="row">{date(day.date)}</th><td>{money(day.income)}</td><td>{money(day.expenses)}</td><td>{money(day.minimum_balance)}</td><td>{money(day.closing_balance)}</td></tr>)}</tbody></table></div></details>
+    <DailyProjectionDetails chartDays={days} analysisDays={analysisDays} referenceDate={referenceDate} assumptionDetails={assumptionDetails} />
   </section>
 }

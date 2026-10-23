@@ -142,6 +142,21 @@ input[aria-invalid=true], .payment-form textarea[aria-invalid=true] { border-col
 .recurrence-label, .overdue-label { display: block; font-size: .7rem; color: #99a5b3; font-weight: 400; margin-top: 4px; }
 .overdue-label { color: #af6e4d; }
 .estimate-label { display: block; width: fit-content; margin-top: 6px; padding: 3px 7px; border-radius: 5px; background: #edf2fb; color: #466c9f; font-size: .7rem; font-weight: 500; }
+.projection-reference, .projection-detail-intro { color: #657b94; font-size: .78rem; line-height: 1.6; }
+.projection-reference { margin-bottom: 0; }
+.projection-detail-intro { margin: 15px 0; max-width: 960px; }
+.projection-details-table td:last-child { min-width: 290px; white-space: normal; }
+.day-events { max-width: 480px; font-size: .78rem; line-height: 1.6; }
+.day-events summary { color: #466c9f; cursor: pointer; }
+.day-events li + li { margin-top: 10px; }
+.day-events p { margin: 5px 0; }
+.day-events h4 { margin-bottom: 8px; }
+.alert-dependency { margin: 15px 0; padding: 12px 14px; border: 1px solid #e4d9c9; border-radius: 8px; background: #fffdf8; }
+.alert-dependency p { margin: 0 0 8px; }
+.alert-dependency p:last-child { margin-bottom: 0; }
+.alert-assumptions { margin-top: 14px; font-size: .78rem; line-height: 1.6; }
+.alert-assumptions summary { cursor: pointer; color: #63758a; }
+.alert-assumptions li + li { margin-top: 8px; }
 .expense-status { display: inline-block; background: #faf0df; color: #aa833f; padding: 4px 9px; border-radius: 5px; font-size: .66rem; font-weight: 500; white-space: nowrap; }
 .expense-status.settled { background: #edf5ed; color: #6b936e; }
 .expense-status.cancelled { background: #f0f2f5; color: #94a0af; }
