@@ -7,6 +7,7 @@ export function Icon({ name }) {
     incomes: <><path d="M12 3v12m-4-4 4 4 4-4M4 15v5h16v-5" /></>,
     recurrences: <><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2" /></>,
     simulations: <><path d="M4 6h16M4 18h16M8 3v6M16 15v6M4 12h16M14 9v6" /></>,
+    assistant: <><path d="M21 11a8 8 0 0 1-8 8H7l-5 3 2-6a8 8 0 1 1 17-5Z" /><path d="M8 10h8M8 14h5" /></>,
   }
   return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }

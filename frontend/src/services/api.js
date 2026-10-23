@@ -95,3 +95,6 @@ export async function applySimulation(values, signal) {
   if (result?.applied !== true || !Number.isInteger(result?.application_id)) throw new Error('Não foi possível confirmar a aplicação. Consulte a mesma operação novamente.')
   return result
 }
+
+export const getAssistantContext = (signal) => expenseRequest('/api/assistant/context/', { signal })
+export const sendAssistantMessage = (values, signal) => writeExpense('/api/assistant/messages/', 'POST', values, signal, getAssistantContext)

@@ -12,7 +12,7 @@ function Summary({ result }) {
   </>
 }
 
-export default function SimulationPanel({ onApplied }) {
+export default function SimulationPanel({ onApplied, onExplain }) {
   const [context, setContext] = useState(null)
   const [reload, setReload] = useState(0)
   const [selectedId, setSelectedId] = useState('')
@@ -103,6 +103,7 @@ export default function SimulationPanel({ onApplied }) {
       {preview.warnings.map((warning) => <p className="simulation-warning" key={warning}>{warning}</p>)}
       <details className="simulation-projection"><summary>Ver projeção e alertas da alternativa</summary><ProjectionChart days={preview.after.chart_days} analysisDays={preview.after.days} referenceDate={preview.reference_date} assumptionDetails={preview.after.assumption_details} alerts={preview.after.alerts} period={preview.period} /><AlertsPanel alerts={preview.after.alerts} period={preview.period} referenceDate={preview.reference_date} assumptionDetails={preview.after.assumption_details} /></details>
       <div className="expense-actions">
+        {onExplain && !uncertain && !blocked && <button type="button" className="secondary-button" disabled={busy} onClick={() => onExplain(preview)}>Explicar com o assistente</button>}
         {!blocked && <button type="button" onClick={apply} disabled={busy}>{busy ? 'Processando…' : uncertain ? 'Consultar aplicação novamente' : 'Aplicar alternativa ao planejamento'}</button>}
         {!uncertain && <button type="button" className="secondary-button" disabled={busy} onClick={() => discard(blocked)}>{blocked ? 'Descartar e atualizar previsões' : 'Descartar alternativa'}</button>}
       </div>

@@ -45,6 +45,7 @@ def project(balance, reference, end, events):
                 "original_date": event["due_date"], "effective_date": date,
                 "source": "estimate" if is_estimate else event["direction"],
                 "status": "pending", "is_estimate": is_estimate, "is_recurring": is_recurring,
+                "essential": event.get("essential", False),
                 "series_id": event.get("series_id"), "series_type": event.get("series_type"),
                 "competence": event.get("competence"), "sequence": len(ordered_events) + 1,
                 "balance_after": balance,
