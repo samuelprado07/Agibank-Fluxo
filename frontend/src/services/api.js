@@ -42,10 +42,10 @@ async function expenseRequest(path, options = {}) {
 
 export const getExpenses = (signal) => expenseRequest('/api/expenses/', { signal })
 
-async function writeExpense(path, method, expense, signal) {
+async function writeExpense(path, method, expense, signal, bootstrap = getExpenses) {
   let token = document.cookie.split('; ').find((cookie) => cookie.startsWith('csrftoken='))?.slice('csrftoken='.length)
   if (!token) {
-    await getExpenses(signal)
+    await bootstrap(signal)
     token = document.cookie.split('; ').find((cookie) => cookie.startsWith('csrftoken='))?.slice('csrftoken='.length)
   }
   return expenseRequest(path, {
@@ -85,5 +85,13 @@ export async function saveReceipt(id, action, values, signal) {
   if (result?.occurrence_id !== id || !Number.isInteger(result?.receipt?.version)) {
     throw new Error('Não foi possível consultar a confirmação. Reenvie a mesma operação.')
   }
+  return result
+}
+
+export const getSimulationContext = (signal) => expenseRequest('/api/simulations/context/', { signal })
+export const previewSimulation = (values, signal) => writeExpense('/api/simulations/preview/', 'POST', values, signal, getSimulationContext)
+export async function applySimulation(values, signal) {
+  const result = await writeExpense('/api/simulations/apply/', 'POST', values, signal, getSimulationContext)
+  if (result?.applied !== true || !Number.isInteger(result?.application_id)) throw new Error('Não foi possível confirmar a aplicação. Consulte a mesma operação novamente.')
   return result
 }

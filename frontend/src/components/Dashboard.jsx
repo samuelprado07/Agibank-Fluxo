@@ -3,8 +3,9 @@ import ProjectionChart from './ProjectionChart.jsx'
 import AlertsPanel from './AlertsPanel.jsx'
 import AssumptionsPanel from './AssumptionsPanel.jsx'
 import { date, money } from '../format.js'
+import SimulationPanel from './SimulationPanel.jsx'
 
-export default function Dashboard({ data }) {
+export default function Dashboard({ data, onChanged }) {
   const { indicators: v, next_income: income, period } = data
   const interval = `${date(period.start)} a ${date(period.end)}`
   const committedPeriod = income ? `Até ${date(income.date)}, inclusive` : 'Próxima renda não informada neste horizonte'
@@ -28,6 +29,7 @@ export default function Dashboard({ data }) {
       </section>
       <AlertsPanel alerts={data.alerts} period={period} referenceDate={data.reference_date} assumptionDetails={data.assumption_details} />
     </div>
+    <SimulationPanel onApplied={onChanged} />
     <AssumptionsPanel assumptions={data.assumptions} warnings={data.warnings} />
   </>
 }

@@ -3,31 +3,46 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from finance.models import Scenario
+from finance.models import Occurrence, Scenario
 from .projection import ASSUMPTION_DETAILS, project
-from .recurrences import ensure_occurrences
-from .income_recurrences import ensure_income_occurrences
+from .recurrences import ensure_occurrences, missing_occurrences
+from .income_recurrences import ensure_income_occurrences, missing_income_occurrences
 from .alerts import attach_relevant_incomes
 
 ZERO = Decimal("0.00")
 
 
 @transaction.atomic
-def capture_projection(scenario_id):
+def capture_projection(scenario_id, *, materialize=True):
     # SQLite IMMEDIATE protects generation and all inputs from competing writes.
     scenario = Scenario.objects.get(pk=scenario_id)
     reference = scenario.reference_date
     if scenario.opening_date > reference:
         raise ValueError("A data de abertura não pode ser posterior à referência.")
-    ensure_occurrences(scenario, reference + timedelta(days=59))
-    ensure_income_occurrences(scenario, reference + timedelta(days=59))
+    horizon = reference + timedelta(days=59)
+    if materialize:
+        ensure_occurrences(scenario, horizon)
+        ensure_income_occurrences(scenario, horizon)
     movements = list(scenario.movements.select_related("occurrence").filter(is_voided=False))
     occurrences = list(scenario.occurrences.all())
+    if not materialize:
+        virtual = missing_occurrences(scenario, horizon) + missing_income_occurrences(scenario, horizon)
+        # Virtual IDs follow all persisted IDs and the same generation order.
+        # They are only calculation identities, never accepted as edit targets.
+        highest = Occurrence.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
+        for offset, occurrence in enumerate(virtual, 1):
+            occurrence.pk = highest + offset
+            occurrence.amount = Decimal(occurrence.amount)
+        occurrences.extend(virtual)
     return scenario, movements, occurrences
 
 
 def build_dashboard(scenario):
     scenario, movements, occurrences = capture_projection(scenario.pk)
+    return build_from_snapshot(scenario, movements, occurrences)
+
+
+def build_from_snapshot(scenario, movements, occurrences, *, fixed_end=None):
     reference = scenario.reference_date
     warnings = []
     linked = {}
@@ -76,9 +91,13 @@ def build_dashboard(scenario):
     limit = reference + timedelta(days=59)
     future_income = sorted((o for o in pending if o.direction == "income" and reference <= o.due_date <= limit), key=lambda o: (o.due_date, o.pk))
     next_income = future_income[0] if future_income else None
-    end = max(reference + timedelta(days=14), next_income.due_date) if next_income else limit
+    end = fixed_end or (max(reference + timedelta(days=14), next_income.due_date) if next_income else limit)
+    if not reference + timedelta(days=14) <= end <= limit:
+        raise ValueError("O horizonte deve conter de 15 a 60 dias, incluindo a referência.")
     if not next_income:
-        warnings.append("Próximo recebimento não informado neste horizonte. Análise limitada a 60 dias, incluindo a referência.")
+        warnings.append(f"Próximo recebimento não informado na busca de 60 dias. Análise limitada a {(end - reference).days + 1} dias, incluindo a referência.")
+    elif next_income.due_date > end:
+        warnings.append("O próximo recebimento está após o período fixado da comparação. Comprometimento até essa renda e saldo próprio restante não são informados neste intervalo.")
     warnings.append("Gastos ausentes da simulação podem alterar os resultados, mesmo quando há estimativas cadastradas.")
 
     events = []
@@ -96,9 +115,9 @@ def build_dashboard(scenario):
         if occurrence.direction == "expense" and occurrence.essential:
             essentials.append(event)
 
-    committed = sum((e["amount"] for e in events if e["direction"] == "expense" and e["due_date"] <= next_income.due_date), ZERO) if next_income else None
+    committed = sum((e["amount"] for e in events if e["direction"] == "expense" and e["due_date"] <= next_income.due_date), ZERO) if next_income and next_income.due_date <= end else None
     days, alerts = project(balance, reference, end, events)
-    income_data = lambda o: {"id": o.pk, "description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated"}
+    income_data = lambda o: {"id": o.pk, "description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated", "outside_analysis": o.due_date > end}
     attach_relevant_incomes(alerts, [income_data(item) for item in future_income], days, end)
     return {
         "scenario": {"name": scenario.name, "opening_date": scenario.opening_date},

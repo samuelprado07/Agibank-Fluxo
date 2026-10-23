@@ -58,7 +58,7 @@ export default function App() {
       <main id="main-content" tabIndex="-1">
         {refreshMessage && <div className="dashboard-refresh"><p role="status">{refreshMessage}</p><button type="button" className="text-button" onClick={refreshDashboard}>Atualizar</button></div>}
         {result.status === 'ready' ? <>
-          {page === 'overview' && <Dashboard data={result.data} />}
+          {page === 'overview' && <Dashboard data={result.data} onChanged={refreshDashboard} />}
           {page === 'expenses' && <><div className="page-intro"><p className="eyebrow">ORGANIZAÇÃO DO DIA A DIA</p><h1>Seus compromissos, em ordem.</h1><p>Defina o que é essencial e acompanhe cada vencimento.</p></div><ExpensesPanel onChanged={refreshDashboard} /></>}
           {page === 'incomes' && <><div className="page-intro"><p className="eyebrow">PLANEJE SUAS ENTRADAS</p><h1>Mais clareza sobre sua renda.</h1><p>Organize suas previsões e acompanhe o que já recebeu.</p></div><IncomePanel onChanged={refreshDashboard} /></>}
           {page === 'recurrences' && <RecurrenceSettings onChanged={refreshDashboard} />}
