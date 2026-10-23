@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.core import signing
 from .projection_context import AssistantError, capture_context, metadata, facts_for
 from .gemini_provider import generate
+from .local_explanations import local_explanation, FALLBACK_REASONS, TEMPLATE_VERSION, LABEL
 
 HISTORY_SALT = 'finance.assistant.history.v1'
 REFERENCE = re.compile(r'\{\{([a-zA-Z0-9_.]+)\}\}')
@@ -69,13 +70,24 @@ def respond(payload):
                 'facts': facts, 'has_alternative': context['alternative'] is not None}
     if len(json.dumps(outbound, ensure_ascii=False)) > 180000:
         raise AssistantError('Este planejamento tem dados demais para uma orientação segura nesta consulta.', 'context_too_large', 413)
-    raw = generate(outbound, message.strip(), history)
-    text, references = validate_answer(raw, facts)
+    fallback_reason = None
+    try:
+        raw = generate(outbound, message.strip(), history)
+        text, references = validate_answer(raw, facts)
+    except AssistantError as error:
+        if error.code not in FALLBACK_REASONS:
+            raise
+        fallback_reason = error.code
+        text, references = validate_answer(local_explanation(context), facts)
     current = capture_context()
     version = context['projection_version']
     alternative_version = metadata(context)['alternative_version']
-    turns = (history + [{'question': message.strip(), 'answer': text}])[-3:]
-    return {**metadata(context), 'text': text, 'references': references, 'provider': 'gemini',
+    mode = 'local' if fallback_reason else 'gemini'
+    turns = (history + [{'question': message.strip(), 'answer': text, 'response_mode': mode}])[-3:]
+    return {**metadata(context), 'text': text, 'references': references, 'provider': mode,
+            'response_mode': mode, 'fallback_reason': fallback_reason,
+            'template_version': TEMPLATE_VERSION if fallback_reason else None,
+            'label': LABEL if fallback_reason else 'Gemini',
             'stale': current['projection_version'] != version, 'current_projection_version': current['projection_version'],
             'history_token': signing.dumps({'version': version, 'alternative_version': alternative_version, 'turns': turns}, salt=HISTORY_SALT, compress=True),
             'limitations': 'Orientação informativa baseada em estimativas. Não garante recebimentos nem resultados; necessidades essenciais não devem ser cortadas automaticamente.'}

@@ -46,7 +46,9 @@ class AssistantTests(TestCase):
     def test_rejects_unreferenced_numbers_and_invalid_references(self, generate):
         for answer in ['Você terá R$ 900 amanhã.', '{{inexistente}}', 'Seu saldo é 3 mil.', 'Garantimos um retorno de 20%.']:
             generate.return_value = {'paragraphs': [answer]}
-            self.assertEqual(self.send().status_code, 502)
+            response = self.send()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['fallback_reason'], 'invalid_response')
 
     @patch('finance.services.assistant.generate')
     def test_stale_version_is_rejected_before_provider(self, generate):
@@ -104,7 +106,8 @@ class AssistantTests(TestCase):
     @override_settings(GEMINI_API_KEY='')
     def test_missing_configuration_is_safe(self):
         response = self.send()
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['provider'], 'local')
         self.assertNotIn('GEMINI_API_KEY', response.content.decode())
 
 from types import SimpleNamespace

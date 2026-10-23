@@ -83,7 +83,6 @@ class ProjectionApiTests(TestCase):
         self.assertIn("monthly_occurrence", data["days"][1]["assumption_codes"])
 
     def test_capture_reloads_scenario_before_projecting(self):
-        self.scenario.refresh_from_db()
         Scenario.objects.filter(pk=self.scenario.pk).update(opening_balance="2000.00")
         self.assertEqual(build_dashboard(self.scenario)["indicators"]["current_balance"], Decimal("2000.00"))
 
@@ -102,7 +101,6 @@ class ProjectionSnapshotTests(TransactionTestCase):
     def test_confirmation_cannot_split_movement_and_occurrence_capture(self):
         reference = date(2026, 10, 22)
         scenario = Scenario.objects.create(name="Snapshot", opening_date=date(2026, 10, 1), reference_date=reference, opening_balance="1000.00")
-        scenario.refresh_from_db()
         expense = Occurrence.objects.create(scenario=scenario, description="Conta", amount="100.00", due_date=reference, direction="expense")
         capture_paused, resume_capture, writer_started, writer_done = Event(), Event(), Event(), Event()
 

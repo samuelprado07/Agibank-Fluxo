@@ -64,6 +64,6 @@ def facts_for(context):
                 walk(item, f'{path}.{index}')
         elif value is not None and not isinstance(value, bool):
             facts[path] = value
-    for key in ('reference_date', 'period', 'indicators', 'days', 'alerts', 'next_incomes', 'overdue_incomes', 'essential_expenses', 'alternative'):
+    for key in ('reference_date', 'period', 'indicators', 'days', 'alerts', 'next_incomes', 'overdue_incomes', 'essential_expenses', 'warnings', 'alternative'):
         walk(context[key], key)
     return facts
