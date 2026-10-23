@@ -35,12 +35,25 @@ def generate(context, message, history):
                     response_mime_type='application/json', response_json_schema={
                         'type': 'object', 'properties': {'paragraphs': {'type': 'array', 'items': {'type': 'string'}, 'minItems': 1, 'maxItems': 4}},
                         'required': ['paragraphs'], 'additionalProperties': False}))
-            if not response.text:
+            feedback = getattr(response, 'prompt_feedback', None)
+            block = getattr(feedback, 'block_reason', None)
+            blocked_finish_reasons = {'SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'}
+            blocked = block and str(getattr(block, 'value', block)) not in ('BLOCK_REASON_UNSPECIFIED', '0')
+            blocked = blocked or any(str(getattr(getattr(item, 'finish_reason', None), 'value', getattr(item, 'finish_reason', None))) in blocked_finish_reasons for item in (getattr(response, 'candidates', None) or []))
+            if blocked:
                 raise AssistantError('Não foi possível gerar uma orientação para esta pergunta. Tente reformulá-la.', 'blocked_response', 502)
+            if not response.text:
+                raise AssistantError('O serviço de IA retornou uma resposta vazia.', 'invalid_response', 502)
             return json.loads(response.text)
     except errors.APIError as error:
-        limited = getattr(error, 'code', None) == 429
-        raise AssistantError('O assistente atingiu o limite de uso. Tente novamente mais tarde.' if limited else 'O serviço de IA está indisponível. Tente novamente mais tarde.', 'provider_rate_limit' if limited else 'provider_unavailable', 429 if limited else 503) from None
+        code = getattr(error, 'code', None)
+        if code == 429:
+            raise AssistantError('O assistente atingiu o limite de uso. Tente novamente mais tarde.', 'provider_rate_limit', 429) from None
+        if code in (400, 401, 403, 404):
+            raise AssistantError('Confira a configuração do serviço de IA.', 'provider_configuration', 503) from None
+        if code == 408 or isinstance(code, int) and code >= 500:
+            raise AssistantError('O serviço de IA está indisponível. Tente novamente mais tarde.', 'provider_unavailable', 503) from None
+        raise AssistantError('O provedor não pôde atender esta pergunta.', 'provider_rejected', 502) from None
     except httpx.TimeoutException:
         raise AssistantError('A resposta demorou mais que o esperado. Tente novamente.', 'provider_timeout', 504) from None
     except httpx.HTTPError:
