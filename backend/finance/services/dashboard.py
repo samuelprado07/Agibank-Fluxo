@@ -8,6 +8,7 @@ from .projection import ASSUMPTION_DETAILS, project
 from .recurrences import ensure_occurrences, missing_occurrences
 from .income_recurrences import ensure_income_occurrences, missing_income_occurrences
 from .alerts import attach_relevant_incomes
+from .projection_version import projection_version
 
 ZERO = Decimal("0.00")
 
@@ -119,7 +120,7 @@ def build_from_snapshot(scenario, movements, occurrences, *, fixed_end=None):
     days, alerts = project(balance, reference, end, events)
     income_data = lambda o: {"id": o.pk, "description": o.description, "amount": o.amount, "date": o.due_date, "status": "estimated", "outside_analysis": o.due_date > end}
     attach_relevant_incomes(alerts, [income_data(item) for item in future_income], days, end)
-    return {
+    result = {
         "scenario": {"name": scenario.name, "opening_date": scenario.opening_date},
         "reference_date": reference,
         "period": {"start": reference, "end": end, "chart_start": reference, "chart_end": reference + timedelta(days=14), "chart_days": 15, "analysis_days": (end - reference).days + 1, "maximum_days": 60},
@@ -158,3 +159,5 @@ def build_from_snapshot(scenario, movements, occurrences, *, fixed_end=None):
             "Saldo negativo representa necessidade estimada de recursos, sem autorização de pagamento.",
         ],
     }
+    result['projection_version'] = projection_version(result)
+    return result

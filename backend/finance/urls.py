@@ -6,8 +6,11 @@ from .series_views import series_collection, series_detail
 from .payment_views import payment
 from .income_views import income_collection, income_detail, income_receipt, income_series_cancel
 from .simulation_views import simulation
+from .assistant_views import assistant
 
 urlpatterns = [
+    path('assistant/context/', assistant, {'action': 'context'}, name='assistant-context'),
+    path('assistant/messages/', assistant, {'action': 'messages'}, name='assistant-messages'),
     path("simulations/context/", simulation, {"action": "context"}, name="simulation-context"),
     path("simulations/preview/", simulation, {"action": "preview"}, name="simulation-preview"),
     path("simulations/apply/", simulation, {"action": "apply"}, name="simulation-apply"),
